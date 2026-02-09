@@ -45,7 +45,7 @@ Widget buildMcbCard(Map<String, dynamic> mcbData) {
               color: statusColor,
             ),
             AppText(
-              "$load A",
+              isOn ? "$load A":"-- A",
               size: TextSize.title,
               color: Colors.green,
             ),

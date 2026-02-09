@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import '../Controller/provider/locationControllerProvider.dart';
+import '../Core/utils/showToastMsg.dart';
 import '../View/rackListScreen.dart';
 import '../Core/constant/appColors_constant.dart';
 import '../Core/utils/navCard.dart';
+import '../Model/locationModel.dart';
 
 class LocationListScreen extends StatelessWidget {
   const LocationListScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Use Consumer to listen to changes in LocationController
     return Consumer<LocationController>(
       builder: (context, controller, child) {
         return Scaffold(
@@ -41,6 +43,8 @@ class LocationListScreen extends StatelessWidget {
                     builder: (_) => RackListScreen(location: location),
                   ),
                 ),
+                // Pass Controller to Dialog
+                onLongPress: () => _showEditDeleteDialog(context, controller, location),
               );
             },
           ),
@@ -55,19 +59,17 @@ class LocationListScreen extends StatelessWidget {
   }
 
   Widget _buildEmptyState() {
-    return Center(
+    return const Center(
       child: Text(
         "No locations added yet.\nTap + to add one.",
         textAlign: TextAlign.center,
-        style: TextStyle(color: AppColors.textSecondary),
+        style: TextStyle(color: Colors.grey),
       ),
     );
   }
 
-  // --- DIALOG LOGIC ---
   void _showAddLocationDialog(BuildContext context) {
     final TextEditingController nameController = TextEditingController();
-
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -76,33 +78,113 @@ class LocationListScreen extends StatelessWidget {
         content: TextField(
           controller: nameController,
           style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: "Enter location name (e.g. Server Room B)",
-            hintStyle: TextStyle(color: Colors.grey.shade600),
-            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey.shade700)),
-            focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryBlue)),
+          decoration: const InputDecoration(
+            hintText: "Enter location name",
+            hintStyle: TextStyle(color: Colors.grey),
+            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primaryBlue)),
           ),
           autofocus: true,
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
             onPressed: () {
               if (nameController.text.trim().isNotEmpty) {
-                // Access the controller and add the location
                 Provider.of<LocationController>(context, listen: false)
                     .addLocation(nameController.text.trim());
+                showToast("Location Added");
                 Navigator.pop(ctx);
               }
             },
-            child: const Text("Add", style: TextStyle(color: Colors.white)),
+            child: const Text("Add"),
           ),
         ],
       ),
     );
   }
+
+  void _showEditDeleteDialog(BuildContext context, LocationController controller, Location location) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.cardSurface,
+      builder: (ctx) => Wrap(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.edit, color: Colors.blueAccent),
+            title: const Text("Edit Location Name", style: TextStyle(color: Colors.white)),
+            onTap: () {
+              Navigator.pop(ctx);
+              _showEditLocationDialog(context, controller, location);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete, color: Colors.redAccent),
+            title: const Text("Delete Location", style: TextStyle(color: Colors.redAccent)),
+            onTap: () {
+              Navigator.pop(ctx);
+              _confirmDelete(context, () {
+                controller.deleteLocation(location);
+                showToast("Location Deleted");
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditLocationDialog(BuildContext context, LocationController controller, Location location) {
+    final nameCtrl = TextEditingController(text: location.name);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardSurface,
+        title: const Text("Edit Location", style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: nameCtrl,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(hintText: "New Name", hintStyle: TextStyle(color: Colors.grey)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
+            onPressed: () {
+              if (nameCtrl.text.isNotEmpty) {
+                // CALL CONTROLLER METHOD
+                controller.updateLocationName(location, nameCtrl.text.trim());
+                showToast("Location Updated");
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, VoidCallback onConfirm) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardSurface,
+        title: const Text("Confirm Delete", style: TextStyle(color: Colors.white)),
+        content: const Text("Are you sure? This action cannot be undone.", style: TextStyle(color: Colors.grey)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () {
+              onConfirm();
+              Navigator.pop(ctx);
+            },
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
 }

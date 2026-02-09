@@ -25,6 +25,8 @@ class PduController extends ChangeNotifier {
   String type = "-";
   String outletsCount = "-";
   String rating = "-";
+  String processorType = "-";
+
   String kva = "-";
   String voltageType = "-";
 
@@ -36,6 +38,11 @@ class PduController extends ChangeNotifier {
   List<OutletData> outlets = [];
   List<Map<String, dynamic>> mcbStatus = [];
   Map<String, dynamic> sensorData = {};
+// NEW: Cache to store status because 'meter' and 'SwitchingAck' come separately
+  final Map<int, bool> _outletStatusCache = {};
+
+  // ... connectToBroker ...
+
 
   PduController(this.device);
 
@@ -89,8 +96,9 @@ class PduController extends ChangeNotifier {
   }
 
   void _subscribeToTopics() {
-    // Add 'SensorConfig' to topics
-    final topics = ['BaseConfig', 'aggmeter', 'sensor', 'mcbs', 'meter', 'SensorConfig'];
+    // 1. ADD 'OutletSwitchingAck' to topics
+    final topics = ['BaseConfig', 'aggmeter', 'sensor', 'mcbs', 'meter', 'SensorConfig', 'OutletSwitchingAck'];
+
     for (var t in topics) client!.subscribe(t, MqttQos.atMostOnce);
 
     client!.updates!.listen((List<MqttReceivedMessage<MqttMessage?>>? c) {
@@ -115,6 +123,8 @@ class PduController extends ChangeNotifier {
             outletsCount = data['outlets'] ?? "-";
             rating = data['ratingInAmp'] ?? "-";
             kva = data['kva'] ?? "-";
+            processorType = data['processorType'] ?? "-";
+
             voltageType = data['voltageType'] ?? "-";
           }
           break;
@@ -125,8 +135,16 @@ class PduController extends ChangeNotifier {
           }
           break;
 
+      // In Controller/provider/pdu_provider.dart
+
         case 'aggmeter':
-          if (data is List) phasesData = List<Map<String, dynamic>>.from(data);
+          if (data is List) {
+            // Filter: Only keep items that actually have a "Phase" key
+            // AND exclude summary keys if they exist in the same list
+            phasesData = List<Map<String, dynamic>>.from(data).where((item) {
+              return item.containsKey("Phase");
+            }).toList();
+          }
           break;
 
         case 'sensor':
@@ -137,18 +155,67 @@ class PduController extends ChangeNotifier {
           if (data is List) mcbStatus = List<Map<String, dynamic>>.from(data);
           break;
 
+        case 'OutletSwitchingAck':
+        // 2. PARSE SWITCHING STATUS
+          if (data is Map<String, dynamic>) {
+            bool hasUpdates = false;
+
+            data.forEach((key, value) {
+              // Keys look like "Outlet1", "Outlet2"
+              if (key.startsWith("Outlet")) {
+                int? id = int.tryParse(key.replaceAll("Outlet", ""));
+                if (id != null) {
+                  bool isOn = value.toString() == "1";
+                  _outletStatusCache[id] = isOn; // Update cache
+                  hasUpdates = true;
+                }
+              }
+            });
+
+            // 3. Update existing 'outlets' list immediately to reflect UI change
+            if (hasUpdates && outlets.isNotEmpty) {
+              outlets = outlets.map((o) {
+                int? oId = int.tryParse(o.id.replaceAll("Outlet ", ""));
+                if (oId != null && _outletStatusCache.containsKey(oId)) {
+                  // Re-create object with new 'isOn' status (since fields are final)
+                  return OutletData(
+                    id: o.id,
+                    isOn: _outletStatusCache[oId]!,
+                    current: o.current,
+                    voltage: o.voltage,
+                    activePower: o.activePower,
+                    energy: o.energy,
+                    powerFactor: o.powerFactor,
+                    frequency: o.frequency,
+                    apparentPower: o.apparentPower,
+                  );
+                }
+                return o;
+              }).toList();
+            }
+          }
+          break;
+
         case 'meter':
           if (data is List) {
-            outlets = data.map<OutletData>((e) => OutletData(
-              id: "Outlet ${e['outlet']}",
-              current: double.tryParse(e['current']?.toString() ?? "0") ?? 0.0,
-              voltage: double.tryParse(e['voltage']?.toString() ?? "0") ?? 0.0,
-              activePower: double.tryParse(e['kWatt']?.toString() ?? "0") ?? 0.0,
-              energy: double.tryParse(e['kWattHr']?.toString() ?? "0") ?? 0.0,
-              powerFactor: double.tryParse(e['powerFactor']?.toString() ?? "0") ?? 0.0,
-              frequency: double.tryParse(e['freqInHz']?.toString() ?? "0") ?? 0.0,
-              apparentPower: double.tryParse(e['VA']?.toString() ?? "0") ?? 0.0,
-            )).toList();
+            outlets = data.map<OutletData>((e) {
+              // Get ID to look up status
+              int oId = e['outlet'] is int ? e['outlet'] : int.tryParse(e['outlet'].toString()) ?? 0;
+
+              return OutletData(
+                id: "Outlet $oId",
+                // 4. USE CACHED STATUS (Default to true if not found yet)
+                isOn: _outletStatusCache[oId] ?? true,
+
+                current: double.tryParse(e['current']?.toString() ?? "0") ?? 0.0,
+                voltage: double.tryParse(e['voltage']?.toString() ?? "0") ?? 0.0,
+                activePower: double.tryParse(e['kWatt']?.toString() ?? "0") ?? 0.0,
+                energy: double.tryParse(e['kWattHr']?.toString() ?? "0") ?? 0.0,
+                powerFactor: double.tryParse(e['powerFactor']?.toString() ?? "0") ?? 0.0,
+                frequency: double.tryParse(e['freqInHz']?.toString() ?? "0") ?? 0.0,
+                apparentPower: double.tryParse(e['VA']?.toString() ?? "0") ?? 0.0,
+              );
+            }).toList();
           }
           break;
       }
