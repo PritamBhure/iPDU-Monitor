@@ -122,10 +122,21 @@ class PduController extends ChangeNotifier {
             type = data['type'] ?? "-";
             outletsCount = data['outlets'] ?? "-";
             rating = data['ratingInAmp'] ?? "-";
-            kva = data['kva'] ?? "-";
-            processorType = data['processorType'] ?? "-";
+            // --- KVA FORMATTING LOGIC ---
+            // 1. Get raw value
+            var rawKva = data['kva'];
+            // 2. Try parsing it to a double
+            double? kvaValue = double.tryParse(rawKva?.toString() ?? "");
 
-            voltageType = data['voltageType'] ?? "-";
+            // 3. Format: If valid number, show 1 decimal place. Else show original or "-"
+            if (kvaValue != null) {
+              kva = kvaValue.toStringAsFixed(1); // Converts 45.28 -> "45.2"
+            } else {
+              kva = rawKva?.toString() ?? "-";
+            }
+
+            processorType = data['processorType']?.toString() ?? "-";
+            voltageType = data['voltageType']?.toString() ?? "-";
           }
           break;
 

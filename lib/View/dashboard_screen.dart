@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../Controller/provider/pdu_provider.dart';
@@ -61,7 +60,6 @@ class DashboardView extends StatelessWidget {
     var tempKeys = allKeys.where((k) => k.toLowerCase().contains("temp")).toList();
     var humidKeys = allKeys.where((k) => k.toLowerCase().contains("humid")).toList();
     var otherKeys = allKeys.where((k) => !k.toLowerCase().contains("temp") && !k.toLowerCase().contains("humid")).toList();
-
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 1200),

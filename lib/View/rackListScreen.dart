@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import '../Controller/provider/locationControllerProvider.dart';
 import '../Core/utils/showToastMsg.dart';
 import '../View/pduListScreen.dart';

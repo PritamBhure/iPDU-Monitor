@@ -50,7 +50,10 @@ class MyApp extends StatelessWidget {
       title: 'Industrial PDU Monitor',
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: AppColors.backgroundDeep,
-        textTheme: GoogleFonts.jetBrainsMonoTextTheme(),
+        textTheme:const TextTheme(
+          bodyMedium: TextStyle(fontFamily: 'JetBrainsMono'),
+          bodyLarge: TextStyle(fontFamily: 'JetBrainsMono'),
+        ),
 
       ),
       home: const SplashScreen(),

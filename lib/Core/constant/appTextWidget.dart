@@ -14,6 +14,7 @@ class TextSize {
 }
 
 // --- 2. CUSTOM TEXT WIDGET ---
+
 class AppText extends StatelessWidget {
   final String text;
   final double size; // Pass TextSize.title, TextSize.body, etc.
@@ -25,7 +26,7 @@ class AppText extends StatelessWidget {
   const AppText(
       this.text, {
         super.key,
-        required this.size, // Force user to pick a standard size
+        required this.size,
         this.color,
         this.fontWeight,
         this.textAlign,
@@ -43,7 +44,8 @@ class AppText extends StatelessWidget {
       text,
       textAlign: textAlign,
       overflow: overflow,
-      style: GoogleFonts.jetBrainsMono(
+      style: TextStyle(
+        fontFamily: 'JetBrainsMono', // Uses your local asset font
         fontSize: size * scaleFactor, // Auto-adjusts size
         color: color ?? Colors.white, // Default to white if null
         fontWeight: fontWeight ?? FontWeight.normal,
