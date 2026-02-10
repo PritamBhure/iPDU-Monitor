@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../constant/appColors_constant.dart';
-import '../../constant/appTextWidget.dart';
+import '../../../constant/appColors_constant.dart';
+import '../../../constant/appTextWidget.dart';
 
 Widget buildMcbCard(Map<String, dynamic> mcbData) {
   // 1. Dynamically find keys (e.g., MCB1Status, MCB1Load)
