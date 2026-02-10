@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mqtt_client/mqtt_client.dart';
-import 'package:mqtt_client/mqtt_server_client.dart'; // Mobile
+import 'package:mqtt_client/mqtt_server_client.dart';
 
 import '../../Model/outletModel.dart';
 import '../../Model/pdu_model.dart';
@@ -26,23 +27,20 @@ class PduController extends ChangeNotifier {
   String outletsCount = "-";
   String rating = "-";
   String processorType = "-";
-
   String kva = "-";
   String voltageType = "-";
 
-  // New Sensor Config
-  String tempMeasure = "C"; // C or F
+  // --- SENSOR CONFIG ---
+  String tempMeasure = "C";
+  Map<String, dynamic> sensorConfigData = {}; // Store full config here
 
   // --- DATA ---
   List<Map<String, dynamic>> phasesData = [];
   List<OutletData> outlets = [];
   List<Map<String, dynamic>> mcbStatus = [];
   Map<String, dynamic> sensorData = {};
-// NEW: Cache to store status because 'meter' and 'SwitchingAck' come separately
+
   final Map<int, bool> _outletStatusCache = {};
-
-  // ... connectToBroker ...
-
 
   PduController(this.device);
 
@@ -53,7 +51,6 @@ class PduController extends ChangeNotifier {
 
     String clientID = 'flutter_pdu_${DateTime.now().millisecondsSinceEpoch}';
 
-    // FIX: Web vs Mobile Client
     if (kIsWeb) {
       connectionStatus = "Error: Web not supported in this mobile build.";
       isLoading = false;
@@ -96,9 +93,7 @@ class PduController extends ChangeNotifier {
   }
 
   void _subscribeToTopics() {
-    // 1. ADD 'OutletSwitchingAck' to topics
     final topics = ['BaseConfig', 'aggmeter', 'sensor', 'mcbs', 'meter', 'SensorConfig', 'OutletSwitchingAck'];
-
     for (var t in topics) client!.subscribe(t, MqttQos.atMostOnce);
 
     client!.updates!.listen((List<MqttReceivedMessage<MqttMessage?>>? c) {
@@ -115,22 +110,18 @@ class PduController extends ChangeNotifier {
       switch (topic) {
         case 'BaseConfig':
           if (data is Map<String, dynamic>) {
-            pduName = data['pduName'] ?? "-";
-            productCode = data['productCode'] ?? "-";
-            serialNo = data['serialNumber'] ?? "-";
-            location = data['location'] ?? "-";
-            type = data['type'] ?? "-";
-            outletsCount = data['outlets'] ?? "-";
-            rating = data['ratingInAmp'] ?? "-";
-            // --- KVA FORMATTING LOGIC ---
-            // 1. Get raw value
-            var rawKva = data['kva'];
-            // 2. Try parsing it to a double
-            double? kvaValue = double.tryParse(rawKva?.toString() ?? "");
+            pduName = data['pduName']?.toString() ?? "-";
+            productCode = data['productCode']?.toString() ?? "-";
+            serialNo = data['serialNumber']?.toString() ?? "-";
+            location = data['location']?.toString() ?? "-";
+            type = data['type']?.toString() ?? "-";
+            outletsCount = data['outlets']?.toString() ?? "-";
+            rating = data['ratingInAmp']?.toString() ?? "-";
 
-            // 3. Format: If valid number, show 1 decimal place. Else show original or "-"
+            var rawKva = data['kva'];
+            double? kvaValue = double.tryParse(rawKva?.toString() ?? "");
             if (kvaValue != null) {
-              kva = kvaValue.toStringAsFixed(2); // Converts 45.2845 -> "45.28"
+              kva = kvaValue.toStringAsFixed(2);
             } else {
               kva = rawKva?.toString() ?? "-";
             }
@@ -140,18 +131,15 @@ class PduController extends ChangeNotifier {
           }
           break;
 
-        case 'SensorConfig': // New Topic for Unit
+        case 'SensorConfig':
           if (data is Map<String, dynamic>) {
+            sensorConfigData = data; // 1. Save Full Config Map
             tempMeasure = data['tempMeasure'] ?? "C";
           }
           break;
 
-      // In Controller/provider/pdu_provider.dart
-
         case 'aggmeter':
           if (data is List) {
-            // Filter: Only keep items that actually have a "Phase" key
-            // AND exclude summary keys if they exist in the same list
             phasesData = List<Map<String, dynamic>>.from(data).where((item) {
               return item.containsKey("Phase");
             }).toList();
@@ -167,28 +155,23 @@ class PduController extends ChangeNotifier {
           break;
 
         case 'OutletSwitchingAck':
-        // 2. PARSE SWITCHING STATUS
           if (data is Map<String, dynamic>) {
             bool hasUpdates = false;
-
             data.forEach((key, value) {
-              // Keys look like "Outlet1", "Outlet2"
               if (key.startsWith("Outlet")) {
                 int? id = int.tryParse(key.replaceAll("Outlet", ""));
                 if (id != null) {
                   bool isOn = value.toString() == "1";
-                  _outletStatusCache[id] = isOn; // Update cache
+                  _outletStatusCache[id] = isOn;
                   hasUpdates = true;
                 }
               }
             });
 
-            // 3. Update existing 'outlets' list immediately to reflect UI change
             if (hasUpdates && outlets.isNotEmpty) {
               outlets = outlets.map((o) {
                 int? oId = int.tryParse(o.id.replaceAll("Outlet ", ""));
                 if (oId != null && _outletStatusCache.containsKey(oId)) {
-                  // Re-create object with new 'isOn' status (since fields are final)
                   return OutletData(
                     id: o.id,
                     isOn: _outletStatusCache[oId]!,
@@ -210,14 +193,10 @@ class PduController extends ChangeNotifier {
         case 'meter':
           if (data is List) {
             outlets = data.map<OutletData>((e) {
-              // Get ID to look up status
               int oId = e['outlet'] is int ? e['outlet'] : int.tryParse(e['outlet'].toString()) ?? 0;
-
               return OutletData(
                 id: "Outlet $oId",
-                // 4. USE CACHED STATUS (Default to true if not found yet)
                 isOn: _outletStatusCache[oId] ?? true,
-
                 current: double.tryParse(e['current']?.toString() ?? "0") ?? 0.0,
                 voltage: double.tryParse(e['voltage']?.toString() ?? "0") ?? 0.0,
                 activePower: double.tryParse(e['kWatt']?.toString() ?? "0") ?? 0.0,
@@ -232,7 +211,7 @@ class PduController extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      print("Parse Error: $e");
+      log("Parse Error: $e");
     }
   }
 
@@ -242,8 +221,27 @@ class PduController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- HELPER: Process Sensor Value ---
   String getSensorDisplay(String key) {
+    // 2. CHECK CONFIG STATUS FIRST
+    // Logic: If key is "th01temperature", look for "th01status"
+    String statusKey = "";
+    final RegExp regExp = RegExp(r'^(th\d+)'); // Matches th01, th02 etc.
+    final match = regExp.firstMatch(key);
+
+    if (match != null) {
+      statusKey = "${match.group(1)}status"; // e.g. th01status
+    }
+    // (Optional) Map other keys if needed:
+    // else if (key.contains("door")) statusKey = "doorStatus";
+
+    // If status exists and is "0", return Disable immediately
+    if (statusKey.isNotEmpty && sensorConfigData.containsKey(statusKey)) {
+      if (sensorConfigData[statusKey].toString() == "0") {
+        return "Disable";
+      }
+    }
+
+    // 3. Normal Value Processing
     var rawVal = sensorData[key];
     if (rawVal == null) return "-";
 
