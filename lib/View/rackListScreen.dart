@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../Controller/provider/locationControllerProvider.dart';
 import '../Core/utils/showToastMsg.dart';
 import '../View/pduListScreen.dart';
@@ -27,7 +26,7 @@ class RackListScreen extends StatelessWidget {
         return Scaffold(
           backgroundColor: AppColors.backgroundDeep,
           appBar: AppBar(
-            title: Text(liveLocation.name, style: GoogleFonts.jetBrainsMono()),
+            title: Text(liveLocation.name),
             backgroundColor: AppColors.cardSurface,
           ),
           body: liveLocation.racks.isEmpty

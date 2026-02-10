@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../Controller/provider/pdu_provider.dart';
 import '../Controller/provider/locationControllerProvider.dart';
 import '../Core/constant/appColors_constant.dart';
@@ -35,7 +34,7 @@ class PduListScreen extends StatelessWidget {
         return Scaffold(
           backgroundColor: AppColors.backgroundDeep,
           appBar: AppBar(
-            title: Text(liveRack.id, style: GoogleFonts.jetBrainsMono()),
+            title: Text(liveRack.id),
             backgroundColor: AppColors.cardSurface,
           ),
           body:
@@ -55,7 +54,7 @@ class PduListScreen extends StatelessWidget {
                       return NavCard(
                         title: pdu.name,
                         subtitle:
-                            "${pdu.type.name.split('.').last} | ${pdu.phase.name.split('.').last}",
+                            pdu.ip,
                         icon: Icons.power,
                         trailing: const Text(
                           "CONNECT",
@@ -195,19 +194,19 @@ class PduListScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  _buildDropdown<PduType>(
-                    "PDU Type",
-                    selectedType,
-                    PduType.values,
-                        (val) => setState(() => selectedType = val!),
-                  ),
-                  const SizedBox(height: 10),
-                  _buildDropdown<PhaseType>(
-                    "Phase Config",
-                    selectedPhase,
-                    PhaseType.values,
-                        (val) => setState(() => selectedPhase = val!),
-                  ),
+                  // _buildDropdown<PduType>(
+                  //   "PDU Type",
+                  //   selectedType,
+                  //   PduType.values,
+                  //       (val) => setState(() => selectedType = val!),
+                  // ),
+                  // const SizedBox(height: 10),
+                  // _buildDropdown<PhaseType>(
+                  //   "Phase Config",
+                  //   selectedPhase,
+                  //   PhaseType.values,
+                  //       (val) => setState(() => selectedPhase = val!),
+                  // ),
                 ],
               ),
             ),
@@ -322,20 +321,20 @@ class PduListScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  _buildDropdown<PduType>(
-                    "PDU Type",
-                    selectedType,
-                    PduType.values,
-                        (val) => setState(() => selectedType = val!),
-                  ),
-                  const SizedBox(height: 10),
-
-                  _buildDropdown<PhaseType>(
-                    "Phase Config",
-                    selectedPhase,
-                    PhaseType.values,
-                        (val) => setState(() => selectedPhase = val!),
-                  ),
+                  // _buildDropdown<PduType>(
+                  //   "PDU Type",
+                  //   selectedType,
+                  //   PduType.values,
+                  //       (val) => setState(() => selectedType = val!),
+                  // ),
+                  // const SizedBox(height: 10),
+                  //
+                  // _buildDropdown<PhaseType>(
+                  //   "Phase Config",
+                  //   selectedPhase,
+                  //   PhaseType.values,
+                  //       (val) => setState(() => selectedPhase = val!),
+                  // ),
                 ],
               ),
             ),

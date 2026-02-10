@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:hive_flutter/hive_flutter.dart'; // Import Hive Flutter
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
 // Import your Models
@@ -14,20 +13,21 @@ import 'Core/constant/appColors_constant.dart';
 import 'View/splashScreen.dart';
 
 void main() async {
-  // 1. Ensure Widgets Binding
   WidgetsFlutterBinding.ensureInitialized();
+
+  // REMOVED: await _preloadFonts(); (This causes the crash)
 
   // 2. Initialize Hive
   await Hive.initFlutter();
 
-  // 3. Register Adapters (Order matters, match typeId)
+  // 3. Register Adapters
   Hive.registerAdapter(PduTypeAdapter());
   Hive.registerAdapter(PhaseTypeAdapter());
   Hive.registerAdapter(PduDeviceAdapter());
   Hive.registerAdapter(RackAdapter());
   Hive.registerAdapter(LocationAdapter());
 
-  // 4. Open the Box (The actual database file)
+  // 4. Open the Box
   await Hive.openBox<Location>('locationsBox');
 
   runApp(
@@ -50,11 +50,10 @@ class MyApp extends StatelessWidget {
       title: 'Industrial PDU Monitor',
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: AppColors.backgroundDeep,
-        textTheme:const TextTheme(
-          bodyMedium: TextStyle(fontFamily: 'JetBrainsMono'),
-          bodyLarge: TextStyle(fontFamily: 'JetBrainsMono'),
+        // This applies the local font from pubspec.yaml globally
+        textTheme: ThemeData.dark().textTheme.apply(
+          fontFamily: 'JetBrainsMono',
         ),
-
       ),
       home: const SplashScreen(),
     );

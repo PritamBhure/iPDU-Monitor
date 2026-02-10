@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../Controller/provider/pdu_provider.dart';
@@ -8,8 +9,25 @@ import '../Core/utils/dashboardHelperWidgets/mcbCardWidget.dart';
 import '../Core/utils/dashboardHelperWidgets/networkStatus.dart';
 import '../Core/utils/dashboardHelperWidgets/sensorBox.dart';
 
-class DashboardView extends StatelessWidget {
+// CHANGED: Converted to StatefulWidget to handle Search State
+class DashboardView extends StatefulWidget {
   const DashboardView({super.key});
+
+  @override
+  State<DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends State<DashboardView> {
+  // --- SEARCH STATE ---
+  bool _isSearchVisible = false;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +69,11 @@ class DashboardView extends StatelessWidget {
   Widget _buildBody(BuildContext context, PduController controller, bool anyMcbTripped) {
     double maxAmps = double.tryParse(controller.rating) ?? 32.0;
 
+    // --- 1. DETERMINE RESTRICTED VIEW (IMIS + Delta) ---
+    // Check if Type is IMIS and Voltage Config contains "Delta" (case-insensitive)
+    bool isDeltaIMIS = (controller.type == "IMIS" || controller.type == "IMIS_DELTA") &&
+        (controller.voltageType.toUpperCase().contains("DELTA"));
+
     double screenWidth = MediaQuery.of(context).size.width;
     bool isWeb = screenWidth > 800;
     int gridCount = screenWidth > 1100 ? 4 : screenWidth > 700 ? 3 : 2;
@@ -60,6 +83,7 @@ class DashboardView extends StatelessWidget {
     var tempKeys = allKeys.where((k) => k.toLowerCase().contains("temp")).toList();
     var humidKeys = allKeys.where((k) => k.toLowerCase().contains("humid")).toList();
     var otherKeys = allKeys.where((k) => !k.toLowerCase().contains("temp") && !k.toLowerCase().contains("humid")).toList();
+
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 1200),
@@ -131,8 +155,7 @@ class DashboardView extends StatelessWidget {
 
               // 4. PHASE METERS
               _header("REAL-TIME PHASE METERS"),
-              buildPhaseMeters(controller, maxAmps, context),
-              const SizedBox(height: 24),
+              buildPhaseMeters(controller, maxAmps, context, isDeltaIMIS), // <--- PASS FLAG              const SizedBox(height: 24),
 
               // 5. ELECTRICAL TABLE
               _header("ELECTRICAL PARAMETERS"),
@@ -146,30 +169,38 @@ class DashboardView extends StatelessWidget {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minWidth: isWeb ? 1100 : 0),
-                    child: DataTable(
-                      headingTextStyle: const TextStyle(color: Colors.grey, fontSize: 11),
-                      columnSpacing: isWeb ? 40 : 15,
-                      columns: const [
-                        DataColumn(label: AppText("PHASE  ", size: TextSize.tableHeader, color: Colors.grey)),
-                        DataColumn(label: AppText("VOLTAGE", size: TextSize.tableHeader, color: Colors.grey)),
-                        DataColumn(label: AppText("CURRENT", size: TextSize.tableHeader, color: Colors.grey)),
-                        DataColumn(label: AppText("ACTIVE ENERGY", size: TextSize.tableHeader, color: Colors.grey)),
-                        DataColumn(label: AppText("POWER FACTOR", size: TextSize.tableHeader, color: Colors.grey)),
-                        DataColumn(label: AppText("APPARENT POWER", size: TextSize.tableHeader, color: Colors.grey)),
-                        DataColumn(label: AppText("FREQUENCY", size: TextSize.tableHeader, color: Colors.grey)),
-                      ],
-                      rows: controller.phasesData.map((d) {
-                        return DataRow(cells: [
-                          DataCell(AppText(d['Phase'] ?? "-", size: TextSize.body, color: AppColors.accentOrange)),
-                          DataCell(AppText(d['voltage']?.toString() ?? "0", size: TextSize.body)),
-                          DataCell(AppText(d['current']?.toString() ?? "0", size: TextSize.body)),
-                          DataCell(AppText(d['kWattHr']?.toString() ?? "0", size: TextSize.body)),
-                          DataCell(AppText(d['powerFactor']?.toString() ?? "0", size: TextSize.body)),
-                          DataCell(AppText(d['VA']?.toString() ?? "0", size: TextSize.body)),
-                          DataCell(AppText(d['freqInHz']?.toString() ?? "0", size: TextSize.body)),
-                        ]);
-                      }).toList(),
+                    // --- 2. CENTER LOGIC ---
+                    // If DeltaIMIS (small table), allow it to shrink and center.
+                    // If Normal (big table), force min-width on Web so it doesn't squish.
+                    constraints: BoxConstraints(
+                        minWidth: (isWeb && !isDeltaIMIS) ? 1100 : MediaQuery.of(context).size.width - 60
+                    ),
+                    child: Center( // <--- This centers the DataTable within the scrollable area
+                      child: DataTable(
+                        headingTextStyle: const TextStyle(color: Colors.grey, fontSize: 11),
+                        // Reduce column spacing if in Delta mode to keep it compact
+                        columnSpacing: isDeltaIMIS ? 40 : (isWeb ? 40 : 15),
+                        columns: [
+                          const DataColumn(label: AppText("PHASE  ", size: TextSize.tableHeader, color: Colors.grey)),
+                          const DataColumn(label: AppText("VOLTAGE", size: TextSize.tableHeader, color: Colors.grey)),
+                          const DataColumn(label: AppText("CURRENT", size: TextSize.tableHeader, color: Colors.grey)),
+                          if (!isDeltaIMIS) const DataColumn(label: AppText("ACTIVE ENERGY", size: TextSize.tableHeader, color: Colors.grey)),
+                          if (!isDeltaIMIS) const DataColumn(label: AppText("POWER FACTOR", size: TextSize.tableHeader, color: Colors.grey)),
+                          if (!isDeltaIMIS) const DataColumn(label: AppText("APPARENT POWER", size: TextSize.tableHeader, color: Colors.grey)),
+                          if (!isDeltaIMIS) const DataColumn(label: AppText("FREQUENCY", size: TextSize.tableHeader, color: Colors.grey)),
+                        ],
+                        rows: controller.phasesData.map((d) {
+                          return DataRow(cells: [
+                            DataCell(AppText(d['Phase'] ?? "-", size: TextSize.body, color: AppColors.accentOrange)),
+                            DataCell(AppText(d['voltage']?.toString() ?? "0", size: TextSize.body)),
+                            DataCell(AppText(d['current']?.toString() ?? "0", size: TextSize.body)),
+                            if (!isDeltaIMIS) DataCell(AppText(d['kWattHr']?.toString() ?? "0", size: TextSize.body)),
+                            if (!isDeltaIMIS) DataCell(AppText(d['powerFactor']?.toString() ?? "0", size: TextSize.body)),
+                            if (!isDeltaIMIS) DataCell(AppText(d['VA']?.toString() ?? "0", size: TextSize.body)),
+                            if (!isDeltaIMIS) DataCell(AppText(d['freqInHz']?.toString() ?? "0", size: TextSize.body)),
+                          ]);
+                        }).toList(),
+                      ),
                     ),
                   ),
                 ),
@@ -185,13 +216,13 @@ class DashboardView extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Column(
-                          children: tempKeys.map((key) => Padding(padding: const EdgeInsets.only(bottom: 10, right: 4), child: _buildSensorWidget(controller, key))).toList(),
+                          children: tempKeys.map((key) => Padding(padding: const EdgeInsets.only(bottom: 10, right: 4), child: buildSensorWidget(controller, key))).toList(),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
-                          children: humidKeys.map((key) => Padding(padding: const EdgeInsets.only(bottom: 10, left: 4), child: _buildSensorWidget(controller, key))).toList(),
+                          children: humidKeys.map((key) => Padding(padding: const EdgeInsets.only(bottom: 10, left: 4), child: buildSensorWidget(controller, key))).toList(),
                         ),
                       ),
                     ],
@@ -208,31 +239,100 @@ class DashboardView extends StatelessWidget {
                       mainAxisSpacing: 10,
                     ),
                     itemCount: otherKeys.length,
-                    itemBuilder: (ctx, index) => _buildSensorWidget(controller, otherKeys[index]),
+                    itemBuilder: (ctx, index) => buildSensorWidget(controller, otherKeys[index]),
                   ),
                 ],
               ],
 
-              // 7. OUTLETS
+              // 7. OUTLETS (With Search)
               if (controller.outlets.isNotEmpty) ...[
                 const SizedBox(height: 24),
-                _header("OUTLET LOAD METERS"),
-                isWeb
-                    ? GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 2.5, crossAxisSpacing: 16, mainAxisSpacing: 16),
-                  itemCount: controller.outlets.length,
-                  itemBuilder: (ctx, i) => _buildOutletCard(controller.outlets[i], maxAmps),
-                )
-                    : ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: controller.outlets.length,
-                  separatorBuilder: (c, i) => const SizedBox(height: 10),
-                  itemBuilder: (ctx, i) => _buildOutletCard(controller.outlets[i], maxAmps),
+                // --- NEW SEARCH HEADER ---
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _header("OUTLET LOAD METERS"),
+                    IconButton(
+                      icon: Icon(
+                        _isSearchVisible ? Icons.close : Icons.search,
+                        color: AppColors.textSecondary,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isSearchVisible = !_isSearchVisible;
+                          if (!_isSearchVisible) {
+                            _searchQuery = "";
+                            _searchController.clear();
+                          }
+                        });
+                      },
+                    ),
+                  ],
+                ),
+
+                // --- SEARCH BAR ---
+                if (_isSearchVisible)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: TextField(
+                      controller: _searchController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: "Search Outlet (e.g. 1, 24)",
+                        hintStyle: const TextStyle(color: Colors.grey),
+                        prefixIcon: const Icon(Icons.search, color: AppColors.primaryBlue),
+                        filled: true,
+                        fillColor: AppColors.cardSurface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                      onChanged: (val) {
+                        setState(() {
+                          _searchQuery = val;
+                        });
+                      },
+                    ),
+                  ),
+
+                // --- FILTER LOGIC ---
+                Builder(
+                  builder: (context) {
+                    // Filter outlets based on search query
+                    final filteredOutlets = controller.outlets.where((outlet) {
+                      return outlet.id.toLowerCase().contains(_searchQuery.toLowerCase());
+                    }).toList();
+
+                    if (filteredOutlets.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.all(20.0),
+                        child: Center(child: AppText("No outlets found", size: TextSize.body, color: Colors.grey)),
+                      );
+                    }
+
+                    // Display Filtered List
+                    return isWeb
+                        ? GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2, childAspectRatio: 2.5, crossAxisSpacing: 16, mainAxisSpacing: 16),
+                      itemCount: filteredOutlets.length,
+                      itemBuilder: (ctx, i) => _buildOutletCard(filteredOutlets[i], maxAmps),
+                    )
+                        : ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: filteredOutlets.length,
+                      separatorBuilder: (c, i) => const SizedBox(height: 10),
+                      itemBuilder: (ctx, i) => _buildOutletCard(filteredOutlets[i], maxAmps),
+                    );
+                  },
                 ),
               ],
+
               const SizedBox(height: 40),
             ],
           ),
@@ -242,17 +342,7 @@ class DashboardView extends StatelessWidget {
   }
 
   // --- HELPERS ---
-  Widget _buildSensorWidget(PduController controller, String key) {
-    IconData icon = Icons.sensors;
-    Color color = Colors.blueAccent;
-    String k = key.toLowerCase();
-    if (k.contains("door")) { icon = Icons.door_sliding; color = Colors.orange; }
-    else if (k.contains("smoke")) { icon = Icons.local_fire_department; color = Colors.red; }
-    else if (k.contains("water")) { icon = Icons.water; color = Colors.cyan; }
-    else if (k.contains("temp")) { icon = Icons.thermostat; color = Colors.redAccent; }
-    else if (k.contains("humid")) { icon = Icons.water_drop; color = Colors.blue; }
-    return sensorBox(key, controller.getSensorDisplay(key), icon, color);
-  }
+
 
   Widget _header(String t) => Padding(padding: const EdgeInsets.only(bottom: 8), child: AppText(t, size: TextSize.small, color: Colors.grey, fontWeight: FontWeight.bold));
 
@@ -267,66 +357,43 @@ class DashboardView extends StatelessWidget {
   Widget _buildOutletCard(dynamic outlet, double maxAmps) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.panelBorder),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      decoration: BoxDecoration(color: AppColors.cardSurface, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppColors.panelBorder)),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Row(children: [
+            // Green/Red Power Icon
+            Icon(
+                Icons.power_settings_new,
+                color: outlet.isOn ? AppColors.accentGreen : AppColors.accentRed,
+                size: 24
+            ),
+            const SizedBox(width: 8),
+            AppText(outlet.id, size: TextSize.subtitle, fontWeight: FontWeight.bold)
+          ]),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Row(children: [
-                // --- LOGIC CHANGE HERE ---
-                // Show Green if ON, Red if OFF
-                Icon(
-                    Icons.power_settings_new, // Use power icon
-                    color: outlet.isOn ? AppColors.accentGreen : AppColors.accentRed,
-                    size: 24
-                ),
-                const SizedBox(width: 8),
-                AppText(outlet.id, size: TextSize.subtitle, fontWeight: FontWeight.bold),
-              ]),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  AppText(outlet.isOn ?
-                  "${outlet.current.toStringAsFixed(2)} A":"---",
-                    size: TextSize.title,
-                    fontWeight: FontWeight.bold,
-                    color:outlet.isOn ? getLoadColor(outlet.current, maxAmps / 8): AppColors.accentRed,
-                  ),
-                  // Optional: Show text status below amps
-                  AppText(
-                    outlet.isOn ? "ON" : "OFF",
-                    size: TextSize.small,
-                    color: outlet.isOn ? AppColors.accentGreen : AppColors.accentRed,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ],
+              AppText(outlet.isOn ? "${outlet.current.toStringAsFixed(2)} A" : "---", size: TextSize.title, fontWeight: FontWeight.bold, color: outlet.isOn ? getLoadColor(outlet.current, maxAmps / 8) : AppColors.accentRed),
+              AppText(
+                outlet.isOn ? "ON" : "OFF",
+                size: TextSize.small,
+                color: outlet.isOn ? AppColors.accentGreen : AppColors.accentRed,
+                fontWeight: FontWeight.bold,
               ),
             ],
           ),
-          const Divider(color: Colors.white10, height: 20),
-          Row(
-            children: [
-              Expanded(child: progressMetric("VOLTAGE", "${outlet.voltage.toStringAsFixed(1)} V", outlet.voltage, 260.0, Colors.blueAccent)),
-              const SizedBox(width: 16),
-              Expanded(child: progressMetric("POWER", "${outlet.activePower.toStringAsFixed(2)} kW", outlet.activePower, 4.0, Colors.orangeAccent)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: progressMetric("ENERGY", "${outlet.energy.toStringAsFixed(2)} kWh", outlet.energy, 1000.0, Colors.greenAccent)),
-              const SizedBox(width: 16),
-              Expanded(child: progressMetric("P.F.", outlet.powerFactor.toStringAsFixed(2), outlet.powerFactor, 1.0, Colors.purpleAccent)),
-            ],
-          ),
-        ],
-      ),
+        ]),
+        const Divider(color: Colors.white10, height: 20),
+        Row(children: [
+          Expanded(child: progressMetric("VOLTAGE", "${outlet.voltage.toStringAsFixed(1)} V", outlet.voltage, 260.0, Colors.blueAccent)), const SizedBox(width: 16),
+          Expanded(child: progressMetric("POWER", "${outlet.activePower.toStringAsFixed(2)} kW", outlet.activePower, 4.0, Colors.orangeAccent)),
+        ]),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: progressMetric("ENERGY", "${outlet.energy.toStringAsFixed(2)} kWh", outlet.energy, 1000.0, Colors.greenAccent)), const SizedBox(width: 16),
+          Expanded(child: progressMetric("P.F.", outlet.powerFactor.toStringAsFixed(2), outlet.powerFactor, 1.0, Colors.purpleAccent)),
+        ]),
+      ]),
     );
   }
 }

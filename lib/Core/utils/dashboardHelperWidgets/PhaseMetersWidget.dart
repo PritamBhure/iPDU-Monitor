@@ -6,33 +6,33 @@ import '../../constant/appTextWidget.dart';
 import '../electricMeterUI.dart';
 
 
-Widget buildPhaseMeters(PduController controller, double maxAmps, BuildContext context) {
-  // --- RESPONSIVE CARD WIDTH LOGIC ---
+Widget buildPhaseMeters(PduController controller, double maxAmps, BuildContext context, bool isDeltaIMIS) {
   double screenWidth = MediaQuery.of(context).size.width;
+  double cardWidth = screenWidth < 600 ? screenWidth * 0.85 : 390.0;
 
-  // Mobile: 85% of screen width (peeks next item)
-  // Tablet/Web: Fixed width of 390 is fine, or scalable
-  double cardWidth = screenWidth < 600
-      ? screenWidth * 0.85
-      : 390.0;
+  // --- 1. DYNAMIC HEIGHT ADJUSTMENT ---
+  // If Delta/IMIS, reduce height to remove empty space
+  double containerHeight = isDeltaIMIS ? 240 : 320;
 
   return SizedBox(
-    height: 320,
+    height: containerHeight, // Use dynamic height
     child: ListView.separated(
       scrollDirection: Axis.horizontal,
       itemCount: controller.phasesData.length,
       separatorBuilder: (c, i) => const SizedBox(width: 12),
       itemBuilder: (ctx, i) {
         final phase = controller.phasesData[i];
+
         double currentVal = double.tryParse(phase['current']?.toString() ?? "0") ?? 0.0;
         double voltVal = double.tryParse(phase['voltage']?.toString() ?? "0") ?? 0.0;
-        double energyVal = double.tryParse(phase['kWattHr']?.toString() ?? "0") ?? 0.0;
-        double pfVal = double.tryParse(phase['powerFactor']?.toString() ?? "0") ?? 0.0;
-        double freqVal = double.tryParse(phase['freqInHz']?.toString() ?? "0") ?? 0.0;
+        double energyVal = isDeltaIMIS ? 0 : double.tryParse(phase['kWattHr']?.toString() ?? "0") ?? 0.0;
+        double pfVal = isDeltaIMIS ? 0 : double.tryParse(phase['powerFactor']?.toString() ?? "0") ?? 0.0;
+        double freqVal = isDeltaIMIS ? 0 : double.tryParse(phase['freqInHz']?.toString() ?? "0") ?? 0.0;
+
         String phaseName = phase['Phase'] ?? "L${i + 1}";
 
         return Container(
-          width: cardWidth, // Adaptive Width
+          width: cardWidth,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.cardSurface,
@@ -50,9 +50,9 @@ Widget buildPhaseMeters(PduController controller, double maxAmps, BuildContext c
                 ],
               ),
               const SizedBox(height: 10),
+
               SizedBox(
-                height: 100,
-                width: 100,
+                height: 100, width: 100,
                 child: CustomPaint(
                   painter: GaugePainter(value: currentVal, maxValue: maxAmps, color: getLoadColor(currentVal, maxAmps)),
                   child: Center(
@@ -68,8 +68,14 @@ Widget buildPhaseMeters(PduController controller, double maxAmps, BuildContext c
                 ),
               ),
               const Divider(color: Colors.white10, height: 20),
+
               Expanded(
-                child: Column(
+                child: isDeltaIMIS
+                    ? Center(
+                  // Voltage is centered vertically in the reduced space
+                  child: progressMetric("VOLTAGE", "${voltVal.toStringAsFixed(1)} V", voltVal, 440.0, Colors.blueAccent),
+                )
+                    : Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     Row(
@@ -97,6 +103,8 @@ Widget buildPhaseMeters(PduController controller, double maxAmps, BuildContext c
     ),
   );
 }
+
+
 
 Color getLoadColor(double val, double max) {
   if (max == 0) return AppColors.accentGreen;

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 // --- 1. SIZE CONSTANTS (Single Location Control) ---
 class TextSize {
@@ -45,10 +44,10 @@ class AppText extends StatelessWidget {
       textAlign: textAlign,
       overflow: overflow,
       style: TextStyle(
-        fontFamily: 'JetBrainsMono', // Uses your local asset font
-        fontSize: size * scaleFactor, // Auto-adjusts size
-        color: color ?? Colors.white, // Default to white if null
-        fontWeight: fontWeight ?? FontWeight.normal,
+        fontFamily: 'JetBrainsMono', // Use String, NOT GoogleFonts.jetBrainsMono()
+        fontSize: size * scaleFactor,
+        color: color ?? Colors.white,
+        fontWeight: fontWeight,
       ),
     );
   }

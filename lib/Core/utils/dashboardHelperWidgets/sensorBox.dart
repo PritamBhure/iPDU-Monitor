@@ -1,7 +1,22 @@
 import 'package:flutter/material.dart';
 
+import '../../../Controller/provider/pdu_provider.dart';
 import '../../constant/appColors_constant.dart';
 import '../../constant/appTextWidget.dart';
+
+
+Widget buildSensorWidget(PduController controller, String key) {
+  IconData icon = Icons.sensors;
+  Color color = Colors.blueAccent;
+  String k = key.toLowerCase();
+  if (k.contains("door")) { icon = Icons.door_sliding; color = Colors.orange; }
+  else if (k.contains("smoke")) { icon = Icons.local_fire_department; color = Colors.red; }
+  else if (k.contains("water")) { icon = Icons.water; color = Colors.cyan; }
+  else if (k.contains("temp")) { icon = Icons.thermostat; color = Colors.redAccent; }
+  else if (k.contains("humid")) { icon = Icons.water_drop; color = Colors.blue; }
+  return sensorBox(key, controller.getSensorDisplay(key), icon, color);
+}
+
 
 Widget sensorBox(String l, String v, IconData i, Color c) {
   // Format label nicely (e.g. th01temperature -> TH01 Temp)

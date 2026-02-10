@@ -130,7 +130,7 @@ class PduController extends ChangeNotifier {
 
             // 3. Format: If valid number, show 1 decimal place. Else show original or "-"
             if (kvaValue != null) {
-              kva = kvaValue.toStringAsFixed(1); // Converts 45.28 -> "45.2"
+              kva = kvaValue.toStringAsFixed(2); // Converts 45.2845 -> "45.28"
             } else {
               kva = rawKva?.toString() ?? "-";
             }

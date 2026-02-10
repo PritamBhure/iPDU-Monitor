@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pdu_control_system/Core/constant/appTextWidget.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../Controller/provider/locationControllerProvider.dart';
 import '../Core/utils/showToastMsg.dart';
@@ -19,9 +19,8 @@ class LocationListScreen extends StatelessWidget {
         return Scaffold(
           backgroundColor: AppColors.backgroundDeep,
           appBar: AppBar(
-            title: Text(
-              "Select Location",
-              style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold),
+            title: AppText(
+              "Select Location", size: TextSize.huge,
             ),
             backgroundColor: AppColors.cardSurface,
           ),
