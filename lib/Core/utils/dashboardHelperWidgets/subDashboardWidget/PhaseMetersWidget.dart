@@ -62,7 +62,7 @@ Widget buildPhaseMeters(PduController controller, double maxAmps, BuildContext c
                       children: [
                         const SizedBox(height: 10),
                         AppText(currentVal.toStringAsFixed(1), size: TextSize.large, fontWeight: FontWeight.bold),
-                        const AppText("AMPS", size: TextSize.micro, color: Colors.grey),
+                        const AppText("Current", size: TextSize.micro, color: Colors.grey),
                       ],
                     ),
                   ),

@@ -31,14 +31,19 @@ class _DashboardViewState extends State<DashboardView> {
       return entry.value.toString() == "0";
     });
 
-    return Scaffold(
-      backgroundColor: AppColors.backgroundDeep,
-      appBar: _buildAppBar(controller),
-      body: controller.isLoading
-          ? buildLoading()
-          : !controller.isConnected
-          ? buildOffline(context, controller)
-          : _buildBody(context, controller, anyMcbTripped),
+    return WillPopScope(
+      onWillPop: () async {
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundDeep,
+        appBar: _buildAppBar(controller),
+        body: controller.isLoading
+            ? buildLoading()
+            : !controller.isConnected
+            ? buildOffline(context, controller)
+            : _buildBody(context, controller, anyMcbTripped),
+      ),
     );
   }
 
@@ -78,6 +83,7 @@ class _DashboardViewState extends State<DashboardView> {
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               // 1. Alert Banner
               if (anyMcbTripped) AlertBannerWidget(message: "CRITICAL: MCB TRIPPED!"),

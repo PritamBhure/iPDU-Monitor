@@ -1,9 +1,17 @@
 import 'dart:async';
+import 'dart:developer';
+import 'package:flutter/foundation.dart'; // Required for kIsWeb
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:provider/provider.dart';
+
+// Import Controller, Model, and Dashboard
+import '../Controller/provider/pdu_provider.dart';
+import '../Core/constant/appConst.dart';
+import '../Model/pdu_model.dart';
 import '../Core/constant/appColors_constant.dart';
 import '../Core/constant/appImageConst.dart';
-import 'locationListScreen.dart';
+import 'dashboard_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -12,7 +20,6 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-// 1. Add SingleTickerProviderStateMixin for animation control
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
@@ -22,50 +29,83 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
 
-    // 2. Initialize Animation Controller (Duration: 1.5 seconds)
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     );
 
-    // 3. Define Scale Animation (0.0 -> 1.0 with a bounce effect)
     _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOutBack, // Gives a nice "pop" effect
-      ),
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
 
-    // 4. Define Fade Animation (Transparent -> Opaque)
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeIn,
-      ),
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
     );
 
-    // 5. Start the Animation
     _controller.forward();
 
-    // 6. Navigate after animation finishes + small delay (Total 2.5 seconds)
+    // Navigate after animation finishes (2.5 seconds total)
     Timer(const Duration(milliseconds: 2500), () {
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (_, __, ___) => const LocationListScreen(),
-            transitionsBuilder: (_, animation, __, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 800),
-          ),
-        );
+        _navigateToDashboard();
       }
     });
   }
 
+  void _navigateToDashboard() {
+    String targetIP;
+
+    // --- DYNAMIC IP LOGIC ---
+    if (kIsWeb) {
+      // 1. Get the Hostname from the Browser URL (e.g., 192.168.8.200)
+      String browserHost = Uri.base.host;
+      log("I am trying to getting IP");
+
+      // 2. Check if valid (Not empty, not localhost for production)
+      if (browserHost.isNotEmpty && browserHost != "localhost") {
+        targetIP = browserHost;
+      } else {
+        log("IP is empty or localhost.");
+
+        // Fallback for local testing if needed
+        targetIP = AppConst.puneIp1;
+      }
+    } else {
+      // Mobile Fallback
+      targetIP = AppConst.puneIp1;
+    }
+
+    log("Auto-Connecting to IP: $targetIP"); // Debug log
+
+    // 1. Create PDU Device with dynamic IP
+    final pduDevice = PduDevice(
+      id: "Auto-Connect",
+      name: "Local PDU",
+      ip: targetIP,
+      type: PduType.IMIS,
+      phase: PhaseType.ThreePhaseStar,
+    );
+
+    // 2. Initialize Controller
+    final controller = PduController(pduDevice);
+
+    // 3. Navigate to Dashboard
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider.value(
+          value: controller,
+          child: const DashboardView(),
+        ),
+      ),
+    );
+
+    // 4. Trigger Connection
+    controller.connectToBroker(targetIP, "elcom@2021", "elcomMQ@2022");
+  }
+
   @override
   void dispose() {
-    _controller.dispose(); // Always dispose controllers to prevent memory leaks
+    _controller.dispose();
     super.dispose();
   }
 
@@ -74,7 +114,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     return Scaffold(
       backgroundColor: AppColors.logoBG,
       body: Center(
-        // 7. Apply Animations to the Logo
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: ScaleTransition(
@@ -82,9 +121,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             child: SizedBox(
               width: 200,
               height: 200,
-              child: SvgPicture.asset(AppImages.primaryLogoSvg,
-                  width: 500,
-                  height: 500,fit: BoxFit.contain,),
+              child: SvgPicture.asset(
+                AppImages.primaryLogoSvg,
+                width: 500,
+                height: 500,
+                fit: BoxFit.contain,
+              ),
             ),
           ),
         ),

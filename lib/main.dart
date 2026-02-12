@@ -47,7 +47,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Industrial PDU Monitor',
+      title: 'Elcom iPDU Monitor',
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: AppColors.backgroundDeep,
         // This applies the local font from pubspec.yaml globally
