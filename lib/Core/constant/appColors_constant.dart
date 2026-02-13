@@ -5,6 +5,9 @@ class AppColors {
   static const Color backgroundDeep = Color(0xFF0D1117);
   static const Color cardSurface = Color(0xFF161B22);
   static const Color panelBorder = Color(0xFF30363D);
+  static final Color tableTiltleBg = Colors.white.withOpacity(0.05);
+
+
 
   // Accents
   static const Color primaryBlue = Color(0xFF2F81F7);

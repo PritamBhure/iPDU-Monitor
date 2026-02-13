@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pdu_control_system/Core/utils/dashboardHelperWidgets/subDashboardWidget/sensorBox.dart';
-import '../../../Controller/provider/pdu_provider.dart';
-import '../../constant/appTextWidget.dart';
+import '../../../../Controller/provider/pdu_provider.dart';
+import '../../../constant/appTextWidget.dart';
 
 class SensorGridWidget extends StatelessWidget {
   final PduController controller;

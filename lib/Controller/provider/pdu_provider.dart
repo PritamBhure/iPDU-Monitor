@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter/foundation.dart';
-// import 'package:mqtt_client/mqtt_browser_client.dart';
+import 'package:mqtt_client/mqtt_browser_client.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 
@@ -55,8 +55,8 @@ class PduController extends ChangeNotifier {
       // WEB: Uses WebSockets (ws://)
       // Ensure port is 9001 (or 8083) depending on your broker settings
       // Note: If your site is HTTPS, this MUST be wss://
-      // client = MqttBrowserClient('ws://$ip', clientID);
-      // client!.port = 9001;
+      client = MqttBrowserClient('ws://$ip', clientID);
+      client!.port = 9001;
     } else {
       // MOBILE: Uses TCP
       client = MqttServerClient(ip, clientID);

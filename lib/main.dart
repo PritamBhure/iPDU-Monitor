@@ -29,6 +29,8 @@ void main() async {
 
   // 4. Open the Box
   await Hive.openBox<Location>('locationsBox');
+  // 2. Open a Box (Database)
+  await Hive.openBox('settings');
 
   runApp(
     MultiProvider(

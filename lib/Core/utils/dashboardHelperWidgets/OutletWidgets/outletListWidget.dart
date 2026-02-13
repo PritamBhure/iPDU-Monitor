@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:pdu_control_system/Core/utils/dashboardHelperWidgets/subDashboardWidget/PhaseMetersWidget.dart';
-import '../../../Controller/provider/pdu_provider.dart';
-import '../../constant/appColors_constant.dart';
-import '../../constant/appTextWidget.dart';
+import '../../../../Controller/provider/pdu_provider.dart';
+import '../../../constant/appColors_constant.dart';
+import '../../../constant/appTextWidget.dart';
+import 'outletListEditWidget.dart';
 
 class OutletListWidget extends StatefulWidget {
   final PduController controller;
   final double maxAmps;
+  final bool isLoggedIn;
 
-  const OutletListWidget({super.key, required this.controller, required this.maxAmps});
+  const OutletListWidget({super.key, required this.controller, required this.maxAmps,required this.isLoggedIn});
 
   @override
   State<OutletListWidget> createState() => _OutletListWidgetState();
@@ -16,6 +18,7 @@ class OutletListWidget extends StatefulWidget {
 
 class _OutletListWidgetState extends State<OutletListWidget> {
   bool _isSearchVisible = false;
+
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
@@ -27,6 +30,8 @@ class _OutletListWidgetState extends State<OutletListWidget> {
 
   @override
   Widget build(BuildContext context) {
+    bool _isLoggedIn = widget.isLoggedIn;
+
     double screenWidth = MediaQuery.of(context).size.width;
     bool isWeb = screenWidth > 800;
 
@@ -39,6 +44,7 @@ class _OutletListWidgetState extends State<OutletListWidget> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const AppText("OUTLET LOAD METERS", size: TextSize.small, color: Colors.grey, fontWeight: FontWeight.bold),
+            Spacer(),
             IconButton(
               icon: Icon(_isSearchVisible ? Icons.close : Icons.search, color: AppColors.textSecondary),
               onPressed: () {
@@ -51,6 +57,32 @@ class _OutletListWidgetState extends State<OutletListWidget> {
                 });
               },
             ),
+            // Inside OutletListWidget.dart
+            if (_isLoggedIn)
+              InkWell(
+                onTap: (){
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => OutletEditScreen(controller: widget.controller),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryBlue.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.edit,
+                    color: AppColors.primaryBlue,
+                    size: 16,
+                  ),
+                ),
+              ),
+
           ],
         ),
 
