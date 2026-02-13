@@ -12,6 +12,7 @@ import '../Model/pdu_model.dart';
 import '../Core/constant/appColors_constant.dart';
 import '../Core/constant/appImageConst.dart';
 import 'dashboard_screen.dart';
+import 'locationListScreen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -20,7 +21,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
@@ -29,6 +31,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
 
+    // 1. Setup Animations
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -44,40 +47,45 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _controller.forward();
 
-    // Navigate after animation finishes (2.5 seconds total)
-    Timer(const Duration(milliseconds: 2500), () {
-      if (mounted) {
-        _navigateToDashboard();
-      }
-    });
+    // 2. Handle Navigation after Delay
+    Timer(const Duration(milliseconds: 2500), _handleNavigation);
   }
 
-  void _navigateToDashboard() {
-    String targetIP;
+// --- CENTRAL NAVIGATION HANDLER ---
+  void _handleNavigation() {
+    // Early exit if widget is gone
+    if (!mounted) return;
 
-    // --- DYNAMIC IP LOGIC ---
     if (kIsWeb) {
-      // 1. Get the Hostname from the Browser URL (e.g., 192.168.8.200)
-      String browserHost = Uri.base.host;
-      log("I am trying to getting IP");
-
-      // 2. Check if valid (Not empty, not localhost for production)
-      if (browserHost.isNotEmpty && browserHost != "localhost") {
-        targetIP = browserHost;
-      } else {
-        log("IP is empty or localhost.");
-
-        // Fallback for local testing if needed
-        targetIP = AppConst.puneIp1;
-      }
+      // WEB FLOW: Auto-connect based on Browser URL
+      _navigateToWebDashboard();
     } else {
-      // Mobile Fallback
-      targetIP = AppConst.puneIp1;
+      // MOBILE FLOW: Go to Location Selection
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => const LocationListScreen(),
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 800),
+        ),
+      );
     }
+  }
 
-    log("Auto-Connecting to IP: $targetIP"); // Debug log
+// --- WEB SPECIFIC LOGIC ---
+  void _navigateToWebDashboard() {
+    // 1. Logic to get IP (No 'if kIsWeb' needed here, we already know we are on web)
+    String browserHost = Uri.base.host;
 
-    // 1. Create PDU Device with dynamic IP
+    // Use Browser IP if valid, otherwise fallback to Test IP
+    String targetIP = (browserHost.isNotEmpty && browserHost != "localhost")
+        ? browserHost
+        : AppConst.puneIp2;
+
+    log("Web Auto-Connect: Detected IP -> $targetIP");
+
+    // 2. Initialize Controller
     final pduDevice = PduDevice(
       id: "Auto-Connect",
       name: "Local PDU",
@@ -86,10 +94,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       phase: PhaseType.ThreePhaseStar,
     );
 
-    // 2. Initialize Controller
     final controller = PduController(pduDevice);
 
-    // 3. Navigate to Dashboard
+    // 3. Navigate
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => ChangeNotifierProvider.value(
@@ -99,7 +106,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       ),
     );
 
-    // 4. Trigger Connection
+    // 4. Connect
     controller.connectToBroker(targetIP, "elcom@2021", "elcomMQ@2022");
   }
 
