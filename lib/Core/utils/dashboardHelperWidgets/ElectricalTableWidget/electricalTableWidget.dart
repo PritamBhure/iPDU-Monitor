@@ -15,12 +15,11 @@ class ElectricalTableWidget extends StatelessWidget {
     bool isWeb = MediaQuery.of(context).size.width > 800;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: AppText("ELECTRICAL PARAMETERS", size: TextSize.small, color: Colors.grey, fontWeight: FontWeight.bold)
-        ),
+
         Container(
           width: double.infinity,
           decoration: BoxDecoration(

@@ -13,10 +13,6 @@ class ConfigurationWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: AppText("DEVICE CONFIGURATION", size: TextSize.small, color: Colors.grey, fontWeight: FontWeight.bold)
-        ),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(

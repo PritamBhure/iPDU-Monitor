@@ -20,10 +20,10 @@ class SensorGridWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: AppText("ENVIRONMENTAL SENSORS", size: TextSize.small, color: Colors.grey, fontWeight: FontWeight.bold)
-        ),
+        // const Padding(
+        //     padding: EdgeInsets.only(bottom: 8),
+        //     child: AppText("ENVIRONMENTAL SENSORS", size: TextSize.small, color: Colors.grey, fontWeight: FontWeight.bold)
+        // ),
 
         // Temp & Humidity Rows
         if (tempKeys.isNotEmpty || humidKeys.isNotEmpty)
