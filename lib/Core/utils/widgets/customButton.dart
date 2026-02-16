@@ -36,6 +36,7 @@ class CustomButton extends StatelessWidget {
         child: AppText(
           text,
           size: TextSize.body,
+          overflow: TextOverflow.ellipsis,
           color: textColor ?? Colors.grey, // Default grey text
           fontWeight: FontWeight.bold,
         ),
@@ -50,10 +51,12 @@ class CustomButton extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: borderRadius),
         elevation: 2,
       ),
+
       onPressed: onPressed,
       child: AppText(
         text,
         size: TextSize.body,
+        overflow: TextOverflow.ellipsis,
         color: textColor ?? Colors.white, // Default white text
         fontWeight: FontWeight.bold,
       ),

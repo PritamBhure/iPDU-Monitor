@@ -29,6 +29,8 @@ class PduController extends ChangeNotifier {
   String processorType = "-";
   String kva = "-";
   String voltageType = "-";
+  String email = "-";
+
 
   // --- SENSOR CONFIG ---
   String tempMeasure = "C";
@@ -119,6 +121,8 @@ class PduController extends ChangeNotifier {
             type = data['type']?.toString() ?? "-";
             outletsCount = data['outlets']?.toString() ?? "-";
             rating = data['ratingInAmp']?.toString() ?? "-";
+            email = data['email']?.toString() ?? "";
+
 
             var rawKva = data['kva'];
             double? kvaValue = double.tryParse(rawKva?.toString() ?? "");

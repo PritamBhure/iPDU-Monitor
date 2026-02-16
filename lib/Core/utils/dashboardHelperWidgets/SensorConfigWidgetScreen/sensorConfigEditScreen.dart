@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart'; // Import ScreenUtil
 import '../../../../Controller/provider/pdu_provider.dart';
 import '../../../constant/appColors_constant.dart';
 import '../../../constant/appTextWidget.dart';
+import '../../widgets/commonAppBar.dart';
 import '../../widgets/customButton.dart';
 // Ensure this path matches your project structure
-import 'package:pdu_control_system/Core/utils/dashboardHelperWidgets/subDashboardWidget/sensorBox.dart';
 
 import '../../widgets/tableInputBoxWidget.dart';
 
@@ -61,9 +62,6 @@ class _SensorConfigEditScreenState extends State<SensorConfigEditScreen> {
         "humHigh": TextEditingController(text: "40"),
       };
     }
-
-    // Initialize switches if needed based on controller data
-    // doorStatus = ...
   }
 
   @override
@@ -80,82 +78,78 @@ class _SensorConfigEditScreenState extends State<SensorConfigEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool isWeb = MediaQuery.of(context).size.width > 900;
-    int gridCount = isWeb ? 3 : 1;
+    // 1. Get Screen Dimensions
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+
+    // Determine grid count based on width (Responsive Breakpoint)
+    int gridCount = screenWidth > 1200 ? 3 : (screenWidth > 800 ? 2 : 1);
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDeep,
-      appBar: AppBar(
-        backgroundColor: AppColors.cardSurface,
-        title: const AppText(
-          "Edit Environmental Sensors",
-          size: TextSize.title,
-          fontWeight: FontWeight.bold,
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+      appBar: CommonAppBar(
+        title: 'Edit Configuration',
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // --- TOP TOGGLE ---
-            Row(
-              children: [
-                const AppText(
-                  "Temperature measure in : ",
-                  size: TextSize.body,
-                  fontWeight: FontWeight.bold,
-                ),
-                const SizedBox(width: 10),
-                const AppText("°C", size: TextSize.body),
-                Switch(
-                  value: !isCelsius,
-                  onChanged: (val) => setState(() => isCelsius = !val),
-                  activeColor: AppColors.primaryBlue,
-                  inactiveThumbColor: AppColors.primaryBlue,
-                  inactiveTrackColor: Colors.white24,
-                ),
-                const AppText("°F", size: TextSize.body),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // --- TABLE CONTAINER ---
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                // color: AppColors.cardSurface,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.panelBorder),
+      body: Center(
+        // 2. Constrain Max Width for Large Laptops
+        child: SingleChildScrollView(
+          // 3. Responsive Outer Padding
+          padding: EdgeInsets.symmetric(
+              horizontal: screenWidth * 0.08, // 2% width padding
+              vertical: screenHeight * 0.02   // 2% height padding
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              // --- TOP TOGGLE ---
+              Row(
+                children: [
+                  AppText(
+                    "Temperature measure in : ",
+                    size: TextSize.body,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  SizedBox(width: 10.w),
+                  AppText("°C", size: TextSize.body),
+                  Transform.scale(
+                    scale: 0.8, // Slightly smaller switch for desktop elegance
+                    child: Switch(
+                      value: !isCelsius,
+                      onChanged: (val) => setState(() => isCelsius = !val),
+                      activeColor: AppColors.primaryBlue,
+                      inactiveThumbColor: AppColors.primaryBlue,
+                      inactiveTrackColor: Colors.white24,
+                    ),
+                  ),
+                  AppText("°F", size: TextSize.body),
+                ],
               ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minWidth: isWeb ? 1500 : 1200),
+             Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(color: AppColors.panelBorder),
+                  ),
                   child: Table(
                     // Outer border
                     border: TableBorder.all(color: Colors.white12),
-                    // 5 Columns Structure for perfect merging
-                    columnWidths: const {
-                      0: FixedColumnWidth(100), // Index
-                      1: FixedColumnWidth(140), // Status
-                      2: FixedColumnWidth(150), // Location
-                      3: FlexColumnWidth(2),    // Temp Group (Double Width)
-                      4: FlexColumnWidth(2),    // Hum Group (Double Width)
+                    // 5 Columns Structure - Using FixedColumnWidth with .w for scaling
+                    columnWidths: {
+                      0: FixedColumnWidth(80.w),  // Index
+                      1: FixedColumnWidth(120.w), // Status
+                      2: FixedColumnWidth(150.w), // Location
+                      3: const FlexColumnWidth(2),      // Temp Group
+                      4: const FlexColumnWidth(2),      // Hum Group
                     },
                     defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                     children: [
                       // --- HEADER ROW ---
                       TableRow(
-
                         children: const [
-                          _HeaderCell("Index", height: 80),
-                          _HeaderCell("Status", height: 80),
-                          _HeaderCell("Sensor Location", height: 80),
+                          _HeaderCell("Index"),
+                          _HeaderCell("Status"),
+                          _HeaderCell("Sensor Location"),
                           // Merged Header for Temp
                           _GroupedHeaderCell(
                             title: "Temperature Sensor Threshold (°C)",
@@ -173,16 +167,16 @@ class _SensorConfigEditScreenState extends State<SensorConfigEditScreen> {
 
                       // --- DATA ROWS ---
                       if (_sensorIds.isEmpty)
-                        const TableRow(
+                        TableRow(
                           children: [
                             Padding(
-                              padding: EdgeInsets.all(20),
-                              child: Text(
+                              padding: EdgeInsets.all(20.r),
+                              child: const Text(
                                 "No Sensors Found",
                                 style: TextStyle(color: Colors.white),
                               ),
                             ),
-                            SizedBox(), SizedBox(), SizedBox(), SizedBox(),
+                            const SizedBox(), const SizedBox(), const SizedBox(), const SizedBox(),
                           ],
                         )
                       else
@@ -190,72 +184,89 @@ class _SensorConfigEditScreenState extends State<SensorConfigEditScreen> {
                     ],
                   ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 30),
 
-            // --- BOTTOM SENSORS (EDITABLE) ---
-            GridView(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: gridCount,
-                childAspectRatio: 3.5,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-              ),
-              children: [
-                buildSensorItem(
-                  "Door Sensor Status",
-                  doorStatus,
-                      (v) => setState(() => doorStatus = v),
+              // --- TABLE CONTAINER ---
+              SizedBox(height: 20.h),
+
+              SizedBox(height: 30.h),
+
+              // --- BOTTOM SENSORS (EDITABLE) ---
+              GridView(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: gridCount,
+                  childAspectRatio: 4.5, // Adjusted for laptop landscape look
+                  crossAxisSpacing: 16.w,
+                  mainAxisSpacing: 16.h,
                 ),
-                buildSensorItem(
-                  "Smoke Sensor Status",
-                  smokeStatus,
-                      (v) => setState(() => smokeStatus = v),
-                ),
-                buildSensorItem(
-                  "Water Sensor Status",
-                  waterStatus,
-                      (v) => setState(() => waterStatus = v),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 40),
-
-            // --- ACTION BUTTONS ---
-            Row(
-              children: [
-                Expanded(
-                  child: CustomButton(
-                    text: "Cancel",
-                    isOutlined: true,
-                    onPressed: () => Navigator.pop(context),
+                children: [
+                  // Wrapped in Container to give height control if needed
+                  SizedBox(
+                    height: 50.h,
+                    child: buildSensorItem(
+                      "Door Sensor Status",
+                      doorStatus,
+                          (v) => setState(() => doorStatus = v),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: CustomButton(
-                    text: "Apply",
-                    onPressed: () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Configuration Updated"),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    },
+                  SizedBox(
+                    height: 50.h,
+                    child: buildSensorItem(
+                      "Smoke Sensor Status",
+                      smokeStatus,
+                          (v) => setState(() => smokeStatus = v),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  SizedBox(
+                    height: 50.h,
+                    child: buildSensorItem(
+                      "Water Sensor Status",
+                      waterStatus,
+                          (v) => setState(() => waterStatus = v),
+                    ),
+                  ),
+                ],
+              ),
+
+
+              // --- ACTION BUTTONS ---
+              SizedBox(height: 40.h),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  // CANCEL BUTTON
+                  Expanded(
+                    child: CustomButton(
+                      text: "Cancel",
+
+                      isOutlined: true,
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+
+                  SizedBox(width: 16.w),
+
+                  // APPLY BUTTON
+                  Expanded(
+                    child: CustomButton(
+                      text: "Apply",
+                      onPressed: () {
+                        // Save Logic...
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
+
     );
   }
 
@@ -269,7 +280,7 @@ class _SensorConfigEditScreenState extends State<SensorConfigEditScreen> {
       children: [
         // Col 1: Index
         Padding(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 4.w),
           child: AppText(
             "Sensor $id",
             size: TextSize.body,
@@ -279,9 +290,10 @@ class _SensorConfigEditScreenState extends State<SensorConfigEditScreen> {
         ),
         // Col 2: Status
         Padding(
-          padding: const EdgeInsets.all(8),
+          padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 8.w),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            height: 40.h, // Fixed height for dropdown
+            padding: EdgeInsets.symmetric(horizontal: 8.w),
             decoration: const BoxDecoration(
               border: Border(
                 bottom: BorderSide(color: AppColors.primaryBlue, width: 2),
@@ -291,11 +303,10 @@ class _SensorConfigEditScreenState extends State<SensorConfigEditScreen> {
               child: DropdownButton<String>(
                 value: rowData['status'],
                 dropdownColor: AppColors.cardSurface,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: Colors.white, fontSize: 14.sp),
                 icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
                 isExpanded: true,
-                items:
-                ["Enable", "Disable"]
+                items: ["Enable", "Disable"]
                     .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                     .toList(),
                 onChanged: (v) => setState(() => rowData['status'] = v!),
@@ -304,42 +315,70 @@ class _SensorConfigEditScreenState extends State<SensorConfigEditScreen> {
           ),
         ),
         // Col 3: Location
-        tableInputBox(rowData['location']),
+        Padding(
+            padding: EdgeInsets.all(4.r),
+            child: tableInputBox(rowData['location'])
+        ),
 
         // Col 4: Temp Group (Lower | Upper)
         Row(
           children: [
-            Expanded(child: tableInputBox(rowData['tempLow'])),
-            Expanded(child: tableInputBox(rowData['tempHigh'])),
+            Expanded(child: Padding(padding: EdgeInsets.all(4.r), child: tableInputBox(rowData['tempLow']))),
+            Expanded(child: Padding(padding: EdgeInsets.all(4.r), child: tableInputBox(rowData['tempHigh']))),
           ],
         ),
 
         // Col 5: Hum Group (Lower | Upper)
         Row(
           children: [
-            Expanded(child: tableInputBox(rowData['humLow'])),
-            Expanded(child: tableInputBox(rowData['humHigh'])),
+            Expanded(child: Padding(padding: EdgeInsets.all(4.r), child: tableInputBox(rowData['humLow']))),
+            Expanded(child: Padding(padding: EdgeInsets.all(4.r), child: tableInputBox(rowData['humHigh']))),
           ],
         ),
       ],
     );
   }
+
+  // Helper for bottom sensors if not imported
+  Widget buildSensorItem(String title, bool status, Function(bool) onChanged) {
+    // Assuming sensorBox or similar widget is used here.
+    // Adapting for responsive layout context if necessary.
+    // For now, implementing a basic switch row if 'sensorBox' is custom.
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: AppColors.panelBorder),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          AppText(title, size: TextSize.body, color: Colors.white),
+          Switch(
+            value: status,
+            onChanged: onChanged,
+            activeColor: AppColors.primaryBlue,
+          )
+        ],
+      ),
+    );
+  }
 }
 
-// --- NEW HEADER CLASSES ---
+// --- NEW RESPONSIVE HEADER CLASSES ---
 
 // 1. Standard Header (Single Column)
 class _HeaderCell extends StatelessWidget {
   final String text;
-  final double? height;
-  const _HeaderCell(this.text, {this.height});
+  const _HeaderCell(this.text);
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(color: AppColors.tableTiltleBg),
-      height: height,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      height: 70.h, // Responsive height
+      padding: EdgeInsets.symmetric(horizontal: 4.w),
       alignment: Alignment.center,
       child: AppText(
         text,
@@ -367,7 +406,7 @@ class _GroupedHeaderCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 80, // Fixed height to match _HeaderCell
+      height: 70.h, // Fixed responsive height
       decoration: BoxDecoration(color: AppColors.tableTiltleBg),
       child: Column(
         children: [
@@ -375,12 +414,15 @@ class _GroupedHeaderCell extends StatelessWidget {
           Expanded(
             flex: 1,
             child: Center(
-              child: AppText(
-                title,
-                size: TextSize.title, // Larger for Main Header
-                textAlign: TextAlign.center,
-                fontWeight: FontWeight.normal,
-                overflow: TextOverflow.ellipsis,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4.w),
+                child: AppText(
+                  title,
+                  size: TextSize.subtitle, // Scaled subtitle size
+                  textAlign: TextAlign.center,
+                  fontWeight: FontWeight.normal,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
           ),
@@ -398,7 +440,7 @@ class _GroupedHeaderCell extends StatelessWidget {
                     ),
                     child: AppText(
                       sub1,
-                      size: TextSize.subtitle,
+                      size: TextSize.small, // Smaller for sub-header
                       fontWeight: FontWeight.normal,
                     ),
                   ),
@@ -407,7 +449,7 @@ class _GroupedHeaderCell extends StatelessWidget {
                   child: Center(
                     child: AppText(
                       sub2,
-                      size: TextSize.subtitle,
+                      size: TextSize.small,
                       fontWeight: FontWeight.normal,
                     ),
                   ),

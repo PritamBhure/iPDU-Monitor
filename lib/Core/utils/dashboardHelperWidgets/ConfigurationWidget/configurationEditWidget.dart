@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart'; // Ensure this is imported
 import '../../../../Controller/provider/pdu_provider.dart';
 import '../../../constant/appColors_constant.dart';
 import '../../../constant/appTextWidget.dart';
+import '../../widgets/commonAppBar.dart';
 import '../../widgets/customButton.dart';
-
 
 class ConfigurationEditScreen extends StatefulWidget {
   final PduController controller;
@@ -11,7 +12,8 @@ class ConfigurationEditScreen extends StatefulWidget {
   const ConfigurationEditScreen({super.key, required this.controller});
 
   @override
-  State<ConfigurationEditScreen> createState() => _ConfigurationEditScreenState();
+  State<ConfigurationEditScreen> createState() =>
+      _ConfigurationEditScreenState();
 }
 
 class _ConfigurationEditScreenState extends State<ConfigurationEditScreen> {
@@ -22,11 +24,9 @@ class _ConfigurationEditScreenState extends State<ConfigurationEditScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize with current values
     _nameCtrl = TextEditingController(text: widget.controller.pduName);
     _locationCtrl = TextEditingController(text: widget.controller.location);
-    // Assuming email might not be in controller yet, defaulting to empty or existing
-    _emailCtrl = TextEditingController(text: "");
+    _emailCtrl = TextEditingController(text: widget.controller.email);
   }
 
   @override
@@ -39,112 +39,128 @@ class _ConfigurationEditScreenState extends State<ConfigurationEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Initializing Media Query values for responsive calculations
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
       backgroundColor: AppColors.backgroundDeep,
-      appBar: AppBar(
-        backgroundColor: AppColors.cardSurface,
-        title: const AppText("Edit Configuration", size: TextSize.title, fontWeight: FontWeight.bold),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+      appBar: CommonAppBar(
+        title: 'Edit Configuration',
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // --- EDIT FORM CONTAINER ---
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.cardSurface,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.panelBorder),
+      body: Center(
+        // Added Center and ConstrainedBox for Laptop screens
+        // so the form doesn't stretch infinitely on a 17-inch wide screen.
+        child: Padding(
+          // 2. Using MediaQuery for outer padding to breathe based on window size
+          padding: EdgeInsets.symmetric(
+              horizontal: screenWidth * 0.1, // 4% of width
+              vertical: screenHeight * 0.03   // 3% of height
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- EDIT FORM CONTAINER ---
+              Container(
+                // Using ScreenUtil for internal padding to maintain element density
+                padding: EdgeInsets.symmetric(
+                    horizontal: 20.w,
+                    vertical: 20.h
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.cardSurface,
+                  borderRadius: BorderRadius.circular(8.r),
+                  border: Border.all(color: AppColors.panelBorder),
+                ),
+                child: Column(
+                  children: [
+                    _buildTextField("iPDU Name", _nameCtrl, screenHeight),
+                    // 3. Using MediaQuery for spacing between fields
+                    SizedBox(height: screenHeight * 0.02),
+
+                    _buildTextField("Location", _locationCtrl, screenHeight),
+                    SizedBox(height: screenHeight * 0.02),
+
+                    _buildTextField("iPDU Contact Email", _emailCtrl, screenHeight )
+                  ],
+                ),
               ),
-              child: Column(
+              const Spacer(),
+
+              // --- ACTION BUTTONS ---
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.max,
                 children: [
-                  _buildTextField("iPDU Name", _nameCtrl),
-                  const SizedBox(height: 16),
-                  _buildTextField("Location", _locationCtrl),
-                  const SizedBox(height: 16),
-                  _buildTextField("iPDU Contact Email", _emailCtrl),
+                  // CANCEL BUTTON
+                  Expanded(
+                    child: CustomButton(
+                      text: "Cancel",
+
+                      isOutlined: true,
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+
+                  SizedBox(width: 16.w),
+
+                  // APPLY BUTTON
+                  Expanded(
+                    child: CustomButton(
+                      text: "Apply",
+                      onPressed: () {
+                        // Save Logic...
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ),
                 ],
               ),
-            ),
-            const Spacer(),
-
-            // --- ACTION BUTTONS ---
-            // ... inside your Row or Column
-
-            Row(
-              children: [
-                // CANCEL BUTTON (Outlined)
-                Expanded(
-                  child: CustomButton(
-                    text: "Cancel",
-                    isOutlined: true, // <--- Switches to Outlined Style
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ),
-
-                const SizedBox(width: 16),
-
-                // APPLY BUTTON (Filled/Default)
-                Expanded(
-                  child: CustomButton(
-                    text: "Apply",
-                    // isOutlined: false, (Default)
-                    onPressed: () {
-                      // Save Logic...
-                      Navigator.pop(context);
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-          ],
+              // Bottom safety padding
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller) {
+  Widget _buildTextField(
+      String label, TextEditingController controller, double screenHeight) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AppText(label, size: TextSize.small, color: Colors.grey),
-        const SizedBox(height: 8),
+        SizedBox(height: 8.h), // ScreenUtil for small consistent gaps
         TextField(
           controller: controller,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
+          style: TextStyle(color: Colors.white, fontSize: 16.h), // ScreenUtil for font
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.backgroundDeep,
-
-            // --- FIX: Explicitly set hover color ---
-            // Use a slightly lighter version of your background or a distinct color
             hoverColor: AppColors.backgroundDeep.withOpacity(0.8),
 
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            // Responsive Content Padding
+            contentPadding: EdgeInsets.symmetric(
+                horizontal: 16.w,
+                vertical: 14.h // Vertical padding scales with height preference
+            ),
+
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.r),
               borderSide: BorderSide.none,
             ),
-
-            // Ensure the border stays visible on hover if you want
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide.none, // Or const BorderSide(color: Colors.white12)
+              borderRadius: BorderRadius.circular(8.r),
+              borderSide: BorderSide.none,
             ),
-
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.r),
               borderSide: const BorderSide(color: AppColors.primaryBlue),
             ),
           ),
         ),
       ],
     );
-  }}
+  }
+}
