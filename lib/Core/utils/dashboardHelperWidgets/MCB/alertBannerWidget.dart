@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../../constant/appColors_constant.dart';
+import '../../../constant/appTextWidget.dart';
 
-import '../../constant/appColors_constant.dart';
-import '../../constant/appTextWidget.dart';
 
 
 class AlertBannerWidget extends StatelessWidget {

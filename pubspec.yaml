@@ -43,6 +43,7 @@ dependencies:
   hive_flutter: ^1.1.0
   fluttertoast: ^8.2.4
   flutter_screenutil: any
+  http: ^1.6.0
 
 
 

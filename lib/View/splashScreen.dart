@@ -81,7 +81,7 @@ class _SplashScreenState extends State<SplashScreen>
     // Use Browser IP if valid, otherwise fallback to Test IP
     String targetIP = (browserHost.isNotEmpty && browserHost != "localhost")
         ? browserHost
-        : AppConst.puneIp2;
+        : AppConst.baseUrl;
 
     log("Web Auto-Connect: Detected IP -> $targetIP");
 

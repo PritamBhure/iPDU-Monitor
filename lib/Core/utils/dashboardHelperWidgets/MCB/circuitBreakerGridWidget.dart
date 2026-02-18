@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../constant/appTextWidget.dart';
-import 'subDashboardWidget/mcbCardWidget.dart';
+import '../../../constant/appTextWidget.dart';
+import '../subDashboardWidget/mcbCardWidget.dart';
 
 
 class CircuitBreakerGridWidget extends StatelessWidget {

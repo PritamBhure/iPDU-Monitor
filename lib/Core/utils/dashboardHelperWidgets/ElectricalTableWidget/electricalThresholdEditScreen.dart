@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart'; // Import ScreenUtil
-
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../Controller/provider/pdu_provider.dart';
 import '../../../constant/appColors_constant.dart';
 import '../../../constant/appTextWidget.dart';
@@ -21,19 +20,55 @@ class ElectricalThresholdEditScreen extends StatefulWidget {
 class _ElectricalThresholdEditScreenState
     extends State<ElectricalThresholdEditScreen> {
   // --- CONTROLLERS GRID ---
+  // Row 0: Overload, Row 1: Near Overload, Row 2: Low Load
+  // Col 0: Aggregate, Col 1: R(L1), Col 2: Y(L2), Col 3: B(L3)
   final List<List<TextEditingController>> _controllers = [];
 
   @override
   void initState() {
     super.initState();
-    // Initialize 3 Rows x 4 Columns
-    for (int i = 0; i < 3; i++) {
-      List<TextEditingController> row = [];
-      for (int j = 0; j < 4; j++) {
-        row.add(TextEditingController(text: "0"));
-      }
-      _controllers.add(row);
-    }
+    _initializeData();
+  }
+
+  void _initializeData() {
+    // 1. Get the data from controller
+    var data = widget.controller.electricalThresholds;
+
+    // Helper to safely get value or default to "0"
+    String getVal(String key) => data[key] ?? "0";
+
+    // 2. Initialize 3 Rows x 4 Columns
+    // ROW 0: OVERLOAD
+    _controllers.add([
+      TextEditingController(text: getVal("aggOverloadThreshold")), // Col 0: Agg
+      TextEditingController(text: getVal("overLoadThreshold_R")), // Col 1: R
+      TextEditingController(text: getVal("overLoadThreshold_Y")), // Col 2: Y
+      TextEditingController(text: getVal("overLoadThreshold_B")), // Col 3: B
+    ]);
+
+    // ROW 1: NEAR OVERLOAD
+    _controllers.add([
+      TextEditingController(
+        text: getVal("aggNearOverloadThreshold"),
+      ), // Col 0: Agg
+      TextEditingController(
+        text: getVal("nearOverloadThreshold_R"),
+      ), // Col 1: R
+      TextEditingController(
+        text: getVal("nearOverloadThreshold_Y"),
+      ), // Col 2: Y
+      TextEditingController(
+        text: getVal("nearOverloadThreshold_B"),
+      ), // Col 3: B
+    ]);
+
+    // ROW 2: LOW LOAD
+    _controllers.add([
+      TextEditingController(text: getVal("aggLowLoadThreshold")), // Col 0: Agg
+      TextEditingController(text: getVal("lowLoadThreshold_R")), // Col 1: R
+      TextEditingController(text: getVal("lowLoadThreshold_Y")), // Col 2: Y
+      TextEditingController(text: getVal("lowLoadThreshold_B")), // Col 3: B
+    ]);
   }
 
   @override
@@ -46,24 +81,19 @@ class _ElectricalThresholdEditScreenState
 
   @override
   Widget build(BuildContext context) {
-    // 1. Get Screen Dimensions
     double screenWidth = MediaQuery.of(context).size.width;
     double screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDeep,
-      appBar: CommonAppBar(
-        title: 'Edit Electrical Thresholds',
-      ),
+      appBar: CommonAppBar(title: 'Edit Electrical Thresholds'),
       body: Center(
-        // 2. Constrain width for large 17" screens so the table doesn't look stretched
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: 1000.w),
           child: SingleChildScrollView(
-            // 3. Use MediaQuery for outer padding to breathe based on window size
             padding: EdgeInsets.symmetric(
-                horizontal: screenWidth * 0.03, // 3% of width
-                vertical: screenHeight * 0.03   // 3% of height
+              horizontal: screenWidth * 0.03,
+              vertical: screenHeight * 0.03,
             ),
             child: Column(
               children: [
@@ -79,19 +109,20 @@ class _ElectricalThresholdEditScreenState
                       Table(
                         border: TableBorder.all(color: Colors.white12),
                         columnWidths: const {
-                          // Keeping FlexColumnWidth is good for responsiveness
                           0: FlexColumnWidth(1.5),
                           1: FlexColumnWidth(1),
                           2: FlexColumnWidth(1),
                           3: FlexColumnWidth(1),
                           4: FlexColumnWidth(1),
                         },
-                        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                        defaultVerticalAlignment:
+                            TableCellVerticalAlignment.middle,
                         children: [
                           // 1. HEADER ROW
                           TableRow(
                             decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.05)),
+                              color: Colors.white.withOpacity(0.05),
+                            ),
                             children: const [
                               _HeaderCell("Threshold Level", alignLeft: true),
                               _HeaderCell("Aggregate (A)"),
@@ -110,34 +141,79 @@ class _ElectricalThresholdEditScreenState
                     ],
                   ),
                 ),
-                // ScreenUtil for vertical spacing
                 SizedBox(height: 30.h),
 
                 // --- BUTTONS ---
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.max,
                   children: [
-                    // CANCEL BUTTON
                     Expanded(
                       child: CustomButton(
                         text: "Cancel",
-
                         isOutlined: true,
                         onPressed: () => Navigator.pop(context),
                       ),
                     ),
-
                     SizedBox(width: 16.w),
-
-                    // APPLY BUTTON
                     Expanded(
                       child: CustomButton(
                         text: "Apply",
-                        onPressed: () {
-                          // Save Logic...
-                          Navigator.pop(context);
+                        onPressed: () async {
+                          // 1. Prepare Data Map
+                          Map<String, String> body = {
+                            "phase": "3",
+
+                            // Row 0: Overload
+                            "aggOverloadThreshold": _controllers[0][0].text,
+                            "overLoadThreshold_R": _controllers[0][1].text,
+                            "overLoadThreshold_Y": _controllers[0][2].text,
+                            "overLoadThreshold_B": _controllers[0][3].text,
+
+                            // Row 1: Near Overload
+                            "aggNearOverloadThreshold": _controllers[1][0].text,
+                            "nearOverloadThreshold_R": _controllers[1][1].text,
+                            "nearOverloadThreshold_Y": _controllers[1][2].text,
+                            "nearOverloadThreshold_B": _controllers[1][3].text,
+
+                            // Row 2: Low Load
+                            "aggLowLoadThreshold": _controllers[2][0].text,
+                            "lowLoadThreshold_R": _controllers[2][1].text,
+                            "lowLoadThreshold_Y": _controllers[2][2].text,
+                            "lowLoadThreshold_B": _controllers[2][3].text,
+                          };
+
+                          // 2. Call API
+                          bool success = await widget.controller
+                              .updateElectricalThresholds(
+                                username:
+                                    "admin", // Replace with actual credentials
+                                password:
+                                    "Admin", // Replace with actual credentials
+                                data: body,
+                              );
+
+                          if (!mounted) return;
+
+                          if (success) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "Thresholds Updated Successfully!",
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "Update Failed. Check connection.",
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         },
                       ),
                     ),
@@ -154,22 +230,31 @@ class _ElectricalThresholdEditScreenState
   TableRow _buildInputRow(String label, int rowIndex) {
     return TableRow(
       children: [
-        // Label Column
         Padding(
-          // Using ScreenUtil for internal table cell padding
           padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
-          child: AppText(label,
-              size: TextSize.body,
-              fontWeight: FontWeight.bold,
-              color: Colors.white70),
+          child: AppText(
+            label,
+            size: TextSize.body,
+            fontWeight: FontWeight.bold,
+            color: Colors.white70,
+          ),
         ),
-        // Input Columns
-        // Note: Assuming tableInputBox handles its own responsiveness internally
-        // or fits the constraints of the parent TableCell.
-        Padding(padding: EdgeInsets.all(4.r), child: tableInputBox(_controllers[rowIndex][0])),
-        Padding(padding: EdgeInsets.all(4.r), child: tableInputBox(_controllers[rowIndex][1])),
-        Padding(padding: EdgeInsets.all(4.r), child: tableInputBox(_controllers[rowIndex][2])),
-        Padding(padding: EdgeInsets.all(4.r), child: tableInputBox(_controllers[rowIndex][3])),
+        Padding(
+          padding: EdgeInsets.all(4.r),
+          child: tableInputBox(_controllers[rowIndex][0]),
+        ),
+        Padding(
+          padding: EdgeInsets.all(4.r),
+          child: tableInputBox(_controllers[rowIndex][1]),
+        ),
+        Padding(
+          padding: EdgeInsets.all(4.r),
+          child: tableInputBox(_controllers[rowIndex][2]),
+        ),
+        Padding(
+          padding: EdgeInsets.all(4.r),
+          child: tableInputBox(_controllers[rowIndex][3]),
+        ),
       ],
     );
   }
@@ -183,14 +268,14 @@ class _HeaderCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      // Responsive padding for the header
       padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 8.w),
       child: AppText(
         text,
         textAlign: alignLeft ? TextAlign.left : TextAlign.center,
-            color: Colors.grey,
-            size:TextSize.tableHeader , // Responsive font size
-            fontWeight: FontWeight.bold),
+        color: Colors.grey,
+        size: TextSize.tableHeader,
+        fontWeight: FontWeight.bold,
+      ),
     );
   }
 }

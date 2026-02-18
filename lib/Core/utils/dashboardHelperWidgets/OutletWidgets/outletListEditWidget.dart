@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart'; // Import ScreenUtil
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../Controller/provider/pdu_provider.dart';
+import '../../../../Model/outletModel/outletThresholdModle.dart';
 import '../../../constant/appColors_constant.dart';
-import '../../../constant/appTextWidget.dart';
 import '../../widgets/commonAppBar.dart';
 import '../../widgets/customButton.dart';
+import 'outletSubWidgets/outletLabelTabScreen.dart';
+import 'outletSubWidgets/outletSwitchingTabScreen.dart';
+import 'outletSubWidgets/outletThresholdTabScreen.dart';
+
+
 
 class OutletEditScreen extends StatefulWidget {
   final PduController controller;
@@ -16,64 +21,85 @@ class OutletEditScreen extends StatefulWidget {
 
 class _OutletEditScreenState extends State<OutletEditScreen>
     with SingleTickerProviderStateMixin {
+  // Add this variable to your state
+  bool _isApplying = false;
   late TabController _tabController;
+  final PageController _pageController = PageController();
 
-  // --- LOCAL STATE FOR EDITING ---
+  // --- FORM STATE ---
   final Map<String, TextEditingController> _labelControllers = {};
+  final Map<String, String> _initialCleanNames = {};
   final Map<String, bool> _switchStates = {};
-  final Map<String, Map<String, dynamic>> _thresholdData = {};
+  final Map<String, OutletThresholdForm> _thresholdForms = {};
+
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
+    // Sync TabBar and PageView for smooth animation
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        _pageController.animateToPage(
+          _tabController.index,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+
     _initializeData();
   }
 
   void _initializeData() {
     for (var outlet in widget.controller.outlets) {
-      String id = outlet.id;
+      String fullId = outlet.id; // e.g. "Outlet 1"
+      String numericId = fullId.replaceAll(RegExp(r'[^0-9]'), '');
 
-      // 1. Label Data
-      _labelControllers[id] = TextEditingController(text: "Server $id");
+      // 1. LABELS
+      String rawName = widget.controller.outletNamesConfig[numericId] ?? fullId;
+      String cleanName = rawName.replaceAll(RegExp(r'\s*\(\d+\)$'), '');
+      if (cleanName.toLowerCase().startsWith("outlet ")) {
+        cleanName = cleanName.replaceAll(" ", "");
+      }
+      _labelControllers[fullId] = TextEditingController(text: cleanName);
+      _initialCleanNames[fullId] = cleanName;
 
-      // 2. Switching Data
-      _switchStates[id] = outlet.isOn;
+      // 2. SWITCHING
+      _switchStates[fullId] = outlet.isOn;
 
-      // 3. Threshold Data
-      _thresholdData[id] = {
-        "status": "Enable",
-        "lowLoad": TextEditingController(text: "0.5"),
-        "nearOver": TextEditingController(text: "8.0"),
-        "overLoad": TextEditingController(text: "10.0"),
-      };
+      // 3. THRESHOLDS
+      Map<String, dynamic> tConfig = widget.controller.outletThresholdConfig[numericId] ?? {};
+      _thresholdForms[fullId] = OutletThresholdForm(
+        status: tConfig['status'] ?? "Disable",
+        lowLoad: TextEditingController(text: tConfig['lowLoad']?.toString() ?? "0.00"),
+        nearOver: TextEditingController(text: tConfig['nearOverLoad']?.toString() ?? "0.00"),
+        overLoad: TextEditingController(text: tConfig['overLoad']?.toString() ?? "0.00"),
+      );
     }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _pageController.dispose();
     for (var c in _labelControllers.values) {
       c.dispose();
     }
-    for (var data in _thresholdData.values) {
-      (data['lowLoad'] as TextEditingController).dispose();
-      (data['nearOver'] as TextEditingController).dispose();
-      (data['overLoad'] as TextEditingController).dispose();
+    for (var f in _thresholdForms.values) {
+      f.dispose();
     }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // 1. Get Screen Dimensions
-    double screenWidth = MediaQuery.of(context).size.width;
-    double screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDeep,
       appBar: CommonAppBar(
-        title: 'Edit Configuration',
+        title: 'Edit Outlets',
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(50.h),
           child: TabBar(
@@ -81,7 +107,15 @@ class _OutletEditScreenState extends State<OutletEditScreen>
             indicatorColor: AppColors.primaryBlue,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.grey,
-            labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.h,overflow: TextOverflow.ellipsis),
+            labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.h),
+            // Custom physics to prevent click-lag
+            onTap: (index) {
+              _pageController.animateToPage(
+                  index,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut
+              );
+            },
             tabs: const [
               Tab(text: "Label"),
               Tab(text: "Switching"),
@@ -89,328 +123,213 @@ class _OutletEditScreenState extends State<OutletEditScreen>
             ],
           ),
         ),
-      ),      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.max,
+      ),
+      body: Column(
         children: [
           Expanded(
             child: Center(
-              // 2. Constrain the body width for large laptops (17")
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: 1200.w),
-                child: TabBarView(
-                  controller: _tabController,
+                // Using PageView allows for smoother transitions than TabBarView
+                // and keeps state alive better
+                child: PageView(
+                  controller: _pageController,
+                  physics: const BouncingScrollPhysics(),
+                  onPageChanged: (index) => _tabController.animateTo(index),
                   children: [
-                    _buildLabelTab(),
-                    _buildSwitchingTab(),
-                    _buildThresholdTab(screenWidth),
+                    outletLabelTab(
+                        outlets: widget.controller.outlets,
+                        controllers: _labelControllers
+                    ),
+                    outletSwitchingTab(
+                      outlets: widget.controller.outlets,
+                      outletNames: widget.controller.outletNamesConfig,
+                      switchStates: _switchStates,
+                      onToggleAll: (val) => setState(() {
+                        for (var k in _switchStates.keys) {
+                          _switchStates[k] = val;
+                        }
+                      }),
+                      onToggleOne: (id, val) => setState(() => _switchStates[id] = val),
+                    ),
+                    outletThresholdTab(
+                      outlets: widget.controller.outlets,
+                      forms: _thresholdForms,
+                    ),
                   ],
                 ),
               ),
             ),
           ),
-
-          // --- BOTTOM ACTIONS ---
-          Container(
-            padding: EdgeInsets.all(16.r),
-            color: AppColors.cardSurface,
-            child: Center(
-              // Center actions on large screens too
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 1200.w),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: CustomButton(
-                        text: "Cancel",
-                        isOutlined: true,
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-                    SizedBox(width: 16.w),
-                    Expanded(
-                      child: CustomButton(
-                        text: "Apply",
-                        onPressed: () {
-                          // TODO: Save Logic Here
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text("Outlet Settings Saved"),
-                                backgroundColor: Colors.green),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          )
+          _buildBottomActionButtons(),
         ],
       ),
     );
+
   }
-
-  // ==========================================
-  // 1. OUTLET LABEL TAB
-  // ==========================================
-  Widget _buildLabelTab() {
-    return ListView.builder(
-      // Responsive Padding
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-      itemCount: widget.controller.outlets.length,
-      itemBuilder: (ctx, i) {
-        String id = widget.controller.outlets[i].id;
-        return Container(
-          margin: EdgeInsets.only(bottom: 12.h),
-          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-          decoration: BoxDecoration(
-            color: AppColors.cardSurface,
-            borderRadius: BorderRadius.circular(8.r),
-            border: Border.all(color: AppColors.panelBorder),
-          ),
-          child: Row(
-
-            children: [
-              AppText(id,
-                  size: TextSize.body,
-                  color: Colors.grey,
-                  fontWeight: FontWeight.bold,
-
-              ),
-              SizedBox(width: 16.w),
-              Expanded(
-                child: buildTextField(_labelControllers[id]!),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // ==========================================
-  // 2. OUTLET SWITCHING TAB
-  // ==========================================
-  Widget _buildSwitchingTab() {
-    return Column(
-      children: [
-        // Global Controls
-        Padding(
-          padding: EdgeInsets.all(16.r),
-          child: Row(
-            children: [
-              Expanded(
-                child: CustomButton(
-                  text: "Turn ON All",
-                  color: AppColors.accentGreen,
-                  onPressed: () => setState(() {
-                    for (var k in _switchStates.keys) {
-                      _switchStates[k] = true;
-                    }
-                  }),
-                ),
-              ),
-              SizedBox(width: 16.w),
-              Expanded(
-                child: CustomButton(
-                  text: "Turn OFF All",
-                  color: AppColors.accentRed,
-                  onPressed: () => setState(() {
-                    for (var k in _switchStates.keys) {
-                      _switchStates[k] = false;
-                    }
-                  }),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // List of Switches
-        Expanded(
-          child: ListView.builder(
-            padding: EdgeInsets.symmetric(horizontal: 16.w),
-            itemCount: widget.controller.outlets.length,
-            itemBuilder: (ctx, i) {
-              String id = widget.controller.outlets[i].id;
-              bool isOn = _switchStates[id] ?? false;
-
-              return Container(
-                margin: EdgeInsets.only(bottom: 12.h),
-                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-                decoration: BoxDecoration(
-                  color: AppColors.cardSurface,
-                  borderRadius: BorderRadius.circular(8.r),
-                  border: Border.all(
-                      color: isOn
-                          ? AppColors.accentGreen.withOpacity(0.5)
-                          : AppColors.panelBorder),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.power_settings_new,
-                            color: isOn ? AppColors.accentGreen : Colors.grey,
-                            size: 24.sp),
-                        SizedBox(width: 12.w),
-                        AppText(id,
-                            size: TextSize.subtitle, fontWeight: FontWeight.bold),
-                      ],
-                    ),
-                    Switch(
-                      value: isOn,
-                      activeColor: Colors.white,
-                      activeTrackColor: AppColors.accentGreen,
-                      inactiveTrackColor: Colors.grey,
-                      onChanged: (val) =>
-                          setState(() => _switchStates[id] = val),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ==========================================
-  // 3. OUTLET THRESHOLD TAB
-  // ==========================================
-  Widget _buildThresholdTab(double screenWidth) {
-    // Determine a minimum width for the table so it scrolls on small screens
-    // but expands on large ones.
-    double minTableWidth = screenWidth > 1400 ? 1100.w : 800.w;
-
-    return SingleChildScrollView(
+  Widget _buildBottomActionButtons() {
+    return Container(
       padding: EdgeInsets.all(16.r),
-      child: Container(
-        width: minTableWidth,
-        decoration: BoxDecoration(
-          color: AppColors.cardSurface,
-          borderRadius: BorderRadius.circular(8.r),
-          border: Border.all(color: AppColors.panelBorder),
-        ),
-        child: Table(
-          border: TableBorder.all(color: Colors.white12),
-          columnWidths: {
-            0: FixedColumnWidth(140.h), // Name
-            1: FixedColumnWidth(120.h), // Status
-            2: const FlexColumnWidth(1),      // Low
-            3: const FlexColumnWidth(1),      // Near
-            4: const FlexColumnWidth(1),      // Over
-          },
-          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-          children: [
-            // Header
-            TableRow(
-              decoration:
-              BoxDecoration(color: Colors.white.withOpacity(0.1)),
-              children: const [
-                _HeaderCell("Outlet"),
-                _HeaderCell("Status"),
-                _HeaderCell("Low Load (A)"),
-                _HeaderCell("Near Over (A)"),
-                _HeaderCell("Over Load (A)"),
-              ],
-            ),
-            // Rows
-            ...widget.controller.outlets.map((outlet) {
-              String id = outlet.id;
-              var data = _thresholdData[id]!;
-
-              return TableRow(
-                decoration: const BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Colors.white12))),
-                children: [
-                  Padding(
-                    padding: EdgeInsets.all(12.r),
-                    child: AppText(id,
-                        size: TextSize.body,
-                        fontWeight: FontWeight.bold,
-                        textAlign: TextAlign.center),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.all(8.r),
-                    child: _buildDropdown(data),
-                  ),
-                  _buildTableInput(data['lowLoad']),
-                  _buildTableInput(data['nearOver']),
-                  _buildTableInput(data['overLoad']),
-                ],
-              );
-            }),
-          ],
+      color: AppColors.cardSurface,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 1200.w),
+          child: Row(
+            children: [
+              Expanded(
+                child: CustomButton(
+                  text: "Cancel",
+                  isOutlined: true,
+                  // FIX 1: Explicitly check state and pass null or function
+                  onPressed: _isApplying
+                      ? () {} // Pass empty function or modify CustomButton to accept null
+                      : () => Navigator.pop(context),
+                  // If your CustomButton disables itself when onPressed is null, use this instead:
+                  // onPressed: _isApplying ? null : () => Navigator.pop(context),
+                ),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: CustomButton(
+                  text: _isApplying ? "Applying..." : "Apply",
+                  // FIX 2: Wrap async function in a sync void callback
+                  onPressed: _isApplying
+                      ? () {}
+                      : () {
+                    _handleApply();
+                  },
+                  // Note: If you want the button to look disabled, you usually pass 'null'.
+                  // If your CustomButton supports 'null' for disabling:
+                  // onPressed: _isApplying ? null : () { _handleApply(); },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+// ===========================================================================
+  //  LOGIC: APPLY CHANGES
+  // ===========================================================================
 
-  // --- HELPERS ---
+  Future<void> _handleApply() async {
+    // Dismiss keyboard if open
+    FocusScope.of(context).unfocus();
 
-  Widget buildTextField(TextEditingController ctrl) {
-    return TextField(
-      controller: ctrl,
-      style: TextStyle(color: Colors.white, fontSize: 16.h),
-      decoration: InputDecoration(
-        isDense: true,
-        filled: true,
-        fillColor: AppColors.backgroundDeep,
-        hoverColor: AppColors.backgroundDeep.withOpacity(0.8),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(4.r),
-            borderSide: BorderSide.none),
-      ),
-    );
+    int currentTab = _tabController.index;
+    if (currentTab == 0) {
+      await _applyLabels();
+    } else if (currentTab == 1) {
+      await _applySwitching();
+    } else if (currentTab == 2) {
+      await _applyThresholds();
+    }
   }
 
-  Widget _buildTableInput(TextEditingController ctrl) {
-    return buildTextField(ctrl);
+  // ... [Keep _applyLabels and _applyThresholds logic exactly as they were] ...
+
+  Future<void> _callUpdateApi(Future<bool> Function() apiCall) async {
+    // 1. START LOADING
+    setState(() => _isApplying = true);
+
+    try {
+      // 2. EXECUTE API
+      bool success = await apiCall();
+
+      if (!mounted) return;
+
+      // 3. HANDLE RESULT
+      if (success) {
+        Navigator.pop(context);
+        _showSnack("Settings Updated Successfully!", isError: false);
+      } else {
+        _showSnack("Update Failed. Check connection.", isError: true);
+      }
+    } catch (e) {
+      _showSnack("An error occurred: $e", isError: true);
+    } finally {
+      // 4. STOP LOADING (Always runs, even if error occurs)
+      if (mounted) {
+        setState(() => _isApplying = false);
+      }
+    }
   }
 
-  Widget _buildDropdown(Map<String, dynamic> data) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundDeep,
-        borderRadius: BorderRadius.circular(4.r),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: data['status'],
-          dropdownColor: AppColors.cardSurface,
-          style: TextStyle(color: Colors.white, fontSize: 14.h),
-          icon: Icon(Icons.arrow_drop_down, color: Colors.white, size: 16.h),
-          isExpanded: true,
-          items: ["Enable", "Disable"]
-              .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-              .toList(),
-          onChanged: (v) => setState(() => data['status'] = v!),
-        ),
+  Future<void> _applyLabels() async {
+    final validNameRegExp = RegExp(r'^[a-zA-Z0-9]+$');
+
+    // 1. Validate
+    for (var entry in _labelControllers.entries) {
+      if (!validNameRegExp.hasMatch(entry.value.text)) {
+        _showSnack("Error: Names must be alphanumeric (No spaces).", isError: true);
+        return;
+      }
+    }
+
+    // 2. Build Payload
+    Map<String, dynamic> body = {"nameChange": true};
+    bool hasChanges = false;
+
+    _labelControllers.forEach((fullId, controller) {
+      String currentText = controller.text.trim();
+      String initialText = _initialCleanNames[fullId] ?? "";
+
+      if (currentText != initialText) {
+        String numericId = fullId.replaceAll(RegExp(r'[^0-9]'), '');
+        body[numericId] = {"name": currentText};
+        hasChanges = true;
+      }
+    });
+
+    if (!hasChanges) {
+      _showSnack("No changes detected.", isError: false);
+      return;
+    }
+
+    // 3. API Call
+    await _callUpdateApi(() => widget.controller.updateOutletNames(
+        username: "admin",
+        password: "Admin@123",
+        data: body
+    ));
+  }
+
+  Future<void> _applySwitching() async {
+    _showSnack("Switching Update not implemented in backend yet.");
+  }
+
+  Future<void> _applyThresholds() async {
+    List<Map<String, dynamic>> payload = [];
+
+    _thresholdForms.forEach((fullId, form) {
+      String numericId = fullId.replaceAll(RegExp(r'[^0-9]'), '');
+      payload.add({
+        "outlet": numericId,
+        "status": form.status,
+        "overLoad": form.overLoad.text,
+        "nearOverLoad": form.nearOver.text,
+        "lowLoad": form.lowLoad.text,
+        "offOnOverLoad": "0"
+      });
+    });
+
+    await _callUpdateApi(() => widget.controller.updateOutletThresholds(
+        username: "admin",
+        password: "Admin@123",
+        data: payload
+    ));
+  }
+
+
+  void _showSnack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? Colors.red : Colors.green,
       ),
     );
   }
 }
 
-class _HeaderCell extends StatelessWidget {
-  final String text;
-  const _HeaderCell(this.text);
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 8.w),
-      alignment: Alignment.center,
-      child: AppText(text,
-          size: TextSize.small,
-          color: Colors.grey,
-          fontWeight: FontWeight.bold,
-          textAlign: TextAlign.center),
-    );
-  }
-}
+

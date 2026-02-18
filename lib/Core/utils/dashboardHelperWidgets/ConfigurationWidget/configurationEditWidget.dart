@@ -106,12 +106,35 @@ class _ConfigurationEditScreenState extends State<ConfigurationEditScreen> {
                   SizedBox(width: 16.w),
 
                   // APPLY BUTTON
+                  // inside ConfigurationEditScreen.dart -> onPressed
+
                   Expanded(
                     child: CustomButton(
                       text: "Apply",
-                      onPressed: () {
-                        // Save Logic...
-                        Navigator.pop(context);
+                      onPressed: () async {
+                        // Assuming you have access to username/password here
+                        // Or you can hardcode 'admin'/'Admin' if that is the requirement
+
+                        bool success = await widget.controller.updatePduConfig(
+                          newName: _nameCtrl.text,
+                          newLocation: _locationCtrl.text,
+                          newContact: _emailCtrl.text,
+                          username: "admin",
+                          password: "Admin@123",
+                        );
+
+                        if (!mounted) return;
+
+                        if (success) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Configuration Saved!"), backgroundColor: Colors.green),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Update Failed"), backgroundColor: Colors.red),
+                          );
+                        }
                       },
                     ),
                   ),
